@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: voiceagent
+      POSTGRES_USER: voiceagent
+      POSTGRES_PASSWORD: voiceagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    environment:
+      VOICEAGENT_ENV: development
+      VOICEAGENT_LOG_LEVEL: INFO
+      VOICEAGENT_DATABASE_URL: postgresql+psycopg://voiceagent:voiceagent@db:5432/voiceagent
+      VOICEAGENT_WEBHOOK_TIMEOUT_SECONDS: 5
+      VOICEAGENT_WEBHOOK_MAX_ATTEMPTS: 5
+      VOICEAGENT_WEBHOOK_RETRY_BACKOFF_SECONDS: 30
+      VOICEAGENT_WEBHOOK_DELIVERY_BATCH_SIZE: 25
+      VOICEAGENT_WEBHOOK_WORKER_POLL_INTERVAL_SECONDS: 5
+      VOICEAGENT_LEMON_SQUEEZY_API_BASE: https://api.lemonsqueezy.com
+      VOICEAGENT_LEMON_SQUEEZY_WEBHOOK_SECRET: test-signing-secret
+      VOICEAGENT_DEFAULT_ORGANIZATION_ID: org_default
+      VOICEAGENT_DEFAULT_ORGANIZATION_NAME: Default Organization
+      VOICEAGENT_API_KEYS: bootstrap,dev-secret-key,orgs:read|api_keys:read|billing:read|billing:write|agents:read|agents:write|agents:publish|bookings:read|bookings:write|calls:read|calls:write|events:read|webhooks:read|webhooks:write;readonly,read-only-key,orgs:read|api_keys:read|billing:read|agents:read|bookings:read|calls:read|events:read|webhooks:read
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: .
+    command: ["sh", "-c", "python -m alembic upgrade head && python -m voiceagent_api.worker"]
+    environment:
+      VOICEAGENT_ENV: development
+      VOICEAGENT_LOG_LEVEL: INFO
+      VOICEAGENT_DATABASE_URL: postgresql+psycopg://voiceagent:voiceagent@db:5432/voiceagent
+      VOICEAGENT_WEBHOOK_TIMEOUT_SECONDS: 5
+      VOICEAGENT_WEBHOOK_MAX_ATTEMPTS: 5
+      VOICEAGENT_WEBHOOK_RETRY_BACKOFF_SECONDS: 30
+      VOICEAGENT_WEBHOOK_DELIVERY_BATCH_SIZE: 25
+      VOICEAGENT_WEBHOOK_WORKER_POLL_INTERVAL_SECONDS: 5
+      VOICEAGENT_LEMON_SQUEEZY_API_BASE: https://api.lemonsqueezy.com
+      VOICEAGENT_LEMON_SQUEEZY_WEBHOOK_SECRET: test-signing-secret
+      VOICEAGENT_DEFAULT_ORGANIZATION_ID: org_default
+      VOICEAGENT_DEFAULT_ORGANIZATION_NAME: Default Organization
+      VOICEAGENT_API_KEYS: bootstrap,dev-secret-key,orgs:read|api_keys:read|billing:read|billing:write|agents:read|agents:write|agents:publish|bookings:read|bookings:write|calls:read|calls:write|events:read|webhooks:read|webhooks:write;readonly,read-only-key,orgs:read|api_keys:read|billing:read|agents:read|bookings:read|calls:read|events:read|webhooks:read
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
