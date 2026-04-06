@@ -19,6 +19,8 @@ from voiceagent_api.routers._helpers import (
     trace_id_from_request,
     require_idempotency_key,
     idempotency_request_hash,
+    normalize_pagination,
+    apply_pagination,
 )
 
 router = APIRouter()
@@ -34,12 +36,9 @@ async def list_webhooks(
     limit: int | None = None,
     offset: int = 0,
 ) -> WebhookListResponse:
-    from voiceagent_api.routers._helpers import apply_pagination
-
-    raw_items = store.list_webhooks(auth.organization_id)
-    paged, total = apply_pagination(raw_items, limit=limit, offset=offset)
-    items = [WebhookResponse.model_validate(hook) for hook in paged]
-    return WebhookListResponse(items=items, total=total)
+    effective_limit, effective_offset = normalize_pagination(limit, offset)
+    items, total = store.list_webhooks_paginated(auth.organization_id, limit=effective_limit, offset=effective_offset)
+    return WebhookListResponse(items=[WebhookResponse.model_validate(h) for h in items], total=total)
 
 
 @router.delete(
@@ -114,10 +113,9 @@ async def list_webhook_deliveries(
     limit: int | None = None,
     offset: int = 0,
 ) -> WebhookDeliveryListResponse:
-    from voiceagent_api.routers._helpers import apply_pagination
-
+    effective_limit, effective_offset = normalize_pagination(limit, offset)
     raw_items = store.list_webhook_deliveries(webhook_id, auth.organization_id)
-    paged, total = apply_pagination(raw_items, limit=limit, offset=offset)
+    paged, total = apply_pagination(raw_items, limit=effective_limit, offset=effective_offset)
     items = [WebhookDeliveryResponse.model_validate(delivery) for delivery in paged]
     return WebhookDeliveryListResponse(items=items, total=total)
 

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 
 from voiceagent_api.auth import AuthContext, require_scope
 from voiceagent_api.schemas import (
     ErrorResponse,
     EventListResponse,
     EventResponse,
-    utc_now,
 )
 from voiceagent_api.store import store
+from voiceagent_api.routers._helpers import normalize_pagination
 
 router = APIRouter()
 
@@ -24,9 +24,6 @@ async def list_events(
     limit: int | None = None,
     offset: int = 0,
 ) -> EventListResponse:
-    from voiceagent_api.routers._helpers import apply_pagination
-
-    raw_items = store.list_events(auth.organization_id)
-    paged, total = apply_pagination(raw_items, limit=limit, offset=offset)
-    items = [EventResponse.model_validate(event) for event in paged]
-    return EventListResponse(items=items, total=total)
+    effective_limit, effective_offset = normalize_pagination(limit, offset)
+    items, total = store.list_events_paginated(auth.organization_id, limit=effective_limit, offset=effective_offset)
+    return EventListResponse(items=[EventResponse.model_validate(e) for e in items], total=total)

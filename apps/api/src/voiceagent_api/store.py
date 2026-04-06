@@ -931,6 +931,13 @@ class AgentStore:
             ).all()
             return [_serialize_agent(agent) for agent in agents]
 
+    def list_agents_paginated(self, organization_id: str, *, limit: int, offset: int) -> tuple[list[dict], int]:
+        with SessionLocal() as session:
+            base = select(AgentModel).where(AgentModel.organization_id == organization_id)
+            total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+            agents = session.scalars(base.order_by(AgentModel.created_at.asc()).limit(limit).offset(offset)).all()
+            return [_serialize_agent(a) for a in agents], total
+
     def create_agent(self, payload: AgentCreateRequest, *, organization_id: str, now: datetime) -> dict:
         agent = AgentModel(
             id=f"agt_{uuid4().hex[:8]}",
@@ -1113,6 +1120,13 @@ class AgentStore:
             ).all()
             return [_serialize_booking(booking) for booking in bookings]
 
+    def list_bookings_paginated(self, organization_id: str, *, limit: int, offset: int) -> tuple[list[dict], int]:
+        with SessionLocal() as session:
+            base = select(BookingModel).where(BookingModel.organization_id == organization_id)
+            total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+            bookings = session.scalars(base.order_by(BookingModel.created_at.desc()).limit(limit).offset(offset)).all()
+            return [_serialize_booking(b) for b in bookings], total
+
     def get_booking(self, booking_id: str, organization_id: str) -> dict:
         with SessionLocal() as session:
             booking = self._get_booking_or_404(session, booking_id=booking_id, organization_id=organization_id)
@@ -1187,6 +1201,13 @@ class AgentStore:
             ).all()
             return [_serialize_event(event) for event in events]
 
+    def list_events_paginated(self, organization_id: str, *, limit: int, offset: int) -> tuple[list[dict], int]:
+        with SessionLocal() as session:
+            base = select(EventModel).where(EventModel.tenant_id == organization_id)
+            total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+            events = session.scalars(base.order_by(EventModel.occurred_at.desc()).limit(limit).offset(offset)).all()
+            return [_serialize_event(e) for e in events], total
+
     def list_webhooks(self, organization_id: str) -> list[dict]:
         with SessionLocal() as session:
             hooks = session.scalars(
@@ -1195,6 +1216,15 @@ class AgentStore:
                 .order_by(WebhookSubscriptionModel.created_at.asc())
             ).all()
             return [_serialize_webhook(hook) for hook in hooks]
+
+    def list_webhooks_paginated(self, organization_id: str, *, limit: int, offset: int) -> tuple[list[dict], int]:
+        with SessionLocal() as session:
+            base = select(WebhookSubscriptionModel).where(WebhookSubscriptionModel.organization_id == organization_id)
+            total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+            hooks = session.scalars(
+                base.order_by(WebhookSubscriptionModel.created_at.asc()).limit(limit).offset(offset)
+            ).all()
+            return [_serialize_webhook(h) for h in hooks], total
 
     def create_webhook(
         self,
@@ -1244,6 +1274,13 @@ class AgentStore:
             ).all()
             return [_serialize_call(call) for call in calls]
 
+    def list_calls_paginated(self, organization_id: str, *, limit: int, offset: int) -> tuple[list[dict], int]:
+        with SessionLocal() as session:
+            base = select(CallModel).where(CallModel.organization_id == organization_id)
+            total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+            calls = session.scalars(base.order_by(CallModel.created_at.desc()).limit(limit).offset(offset)).all()
+            return [_serialize_call(c) for c in calls], total
+
     def get_call(self, call_id: str, organization_id: str) -> dict:
         with SessionLocal() as session:
             call = self._get_call_or_404(session, call_id=call_id, organization_id=organization_id)
@@ -1255,6 +1292,17 @@ class AgentStore:
             turns = session.scalars(
                 select(CallTurnModel).where(CallTurnModel.call_id == call_id).order_by(CallTurnModel.turn_index.asc())
             ).all()
+            return [_serialize_call_turn(turn) for turn in turns]
+
+    def list_call_turns_paginated(
+        self, call_id: str, organization_id: str, *, limit: int, offset: int
+    ) -> tuple[list[dict], int]:
+        with SessionLocal() as session:
+            self._get_call_or_404(session, call_id=call_id, organization_id=organization_id)
+            base = select(CallTurnModel).where(CallTurnModel.call_id == call_id)
+            total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+            turns = session.scalars(base.order_by(CallTurnModel.turn_index.asc()).limit(limit).offset(offset)).all()
+            return [_serialize_call_turn(t) for t in turns], total
             return [_serialize_call_turn(turn) for turn in turns]
 
     def get_call_transcript(self, call_id: str, organization_id: str) -> dict:

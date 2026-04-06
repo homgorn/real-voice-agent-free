@@ -22,6 +22,7 @@ from voiceagent_api.routers._helpers import (
     trace_id_from_request,
     require_idempotency_key,
     idempotency_request_hash,
+    normalize_pagination,
 )
 
 router = APIRouter()
@@ -37,12 +38,9 @@ async def list_calls(
     limit: int | None = None,
     offset: int = 0,
 ) -> CallListResponse:
-    from voiceagent_api.routers._helpers import apply_pagination
-
-    raw_items = store.list_calls(auth.organization_id)
-    paged, total = apply_pagination(raw_items, limit=limit, offset=offset)
-    items = [CallResponse.model_validate(call) for call in paged]
-    return CallListResponse(items=items, total=total)
+    effective_limit, effective_offset = normalize_pagination(limit, offset)
+    items, total = store.list_calls_paginated(auth.organization_id, limit=effective_limit, offset=effective_offset)
+    return CallListResponse(items=[CallResponse.model_validate(c) for c in items], total=total)
 
 
 @router.post(
@@ -127,12 +125,11 @@ async def list_call_turns(
     limit: int | None = None,
     offset: int = 0,
 ) -> CallTurnListResponse:
-    from voiceagent_api.routers._helpers import apply_pagination
-
-    raw_items = store.list_call_turns(call_id, auth.organization_id)
-    paged, total = apply_pagination(raw_items, limit=limit, offset=offset)
-    items = [CallTurnResponse.model_validate(turn) for turn in paged]
-    return CallTurnListResponse(items=items, total=total)
+    effective_limit, effective_offset = normalize_pagination(limit, offset)
+    items, total = store.list_call_turns_paginated(
+        call_id, auth.organization_id, limit=effective_limit, offset=effective_offset
+    )
+    return CallTurnListResponse(items=[CallTurnResponse.model_validate(t) for t in items], total=total)
 
 
 @router.get(

@@ -16,6 +16,7 @@ from voiceagent_api.routers._helpers import (
     trace_id_from_request,
     require_idempotency_key,
     idempotency_request_hash,
+    normalize_pagination,
 )
 
 router = APIRouter()
@@ -31,12 +32,9 @@ async def list_bookings(
     limit: int | None = None,
     offset: int = 0,
 ) -> BookingListResponse:
-    from voiceagent_api.routers._helpers import apply_pagination
-
-    raw_items = store.list_bookings(auth.organization_id)
-    paged, total = apply_pagination(raw_items, limit=limit, offset=offset)
-    items = [BookingResponse.model_validate(booking) for booking in paged]
-    return BookingListResponse(items=items, total=total)
+    effective_limit, effective_offset = normalize_pagination(limit, offset)
+    items, total = store.list_bookings_paginated(auth.organization_id, limit=effective_limit, offset=effective_offset)
+    return BookingListResponse(items=[BookingResponse.model_validate(b) for b in items], total=total)
 
 
 @router.post(
