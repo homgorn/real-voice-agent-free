@@ -15,6 +15,7 @@ from voiceagent_api.db import close_database, create_database, ping_database
 from voiceagent_api.errors import VoiceAgentError
 from voiceagent_api.schemas import ErrorResponse
 from voiceagent_api.middleware import RateLimitMiddleware
+from voiceagent_api.otel import close_opentelemetry, get_metrics_response, init_opentelemetry
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +45,18 @@ async def lifespan(app: FastAPI):
         logger.info("Database initialized and ready")
     except Exception:
         logger.warning("Database not available at startup (env=%s)", settings.env)
+    try:
+        init_opentelemetry(app)
+    except Exception:
+        logger.warning("OpenTelemetry not available")
     yield
     logger.info("Shutting down VoiceAgent API")
     try:
         close_database()
+    except Exception:
+        pass
+    try:
+        close_opentelemetry()
     except Exception:
         pass
     logger.info("Database connections closed")
@@ -124,6 +133,10 @@ def create_app() -> FastAPI:
     app.include_router(webhooks_router)
     app.include_router(events_router)
     app.include_router(usage_router)
+
+    @app.get("/metrics")
+    async def metrics_endpoint():
+        return get_metrics_response()
 
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
