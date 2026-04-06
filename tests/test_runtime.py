@@ -22,8 +22,9 @@ def _create_agent_and_call(client: TestClient) -> str:
             "default_language": "ru",
             "business_hours": {"mon_fri": ["09:00-18:00"]},
         },
-        headers=WRITE_HEADERS,
+        headers={**WRITE_HEADERS, "Idempotency-Key": "rt-agent-1"},
     )
+    assert agent.status_code == 200, f"Failed to create agent: {agent.json()}"
     agent_id = agent.json()["id"]
     call = client.post(
         "/v1/calls",
@@ -33,8 +34,9 @@ def _create_agent_and_call(client: TestClient) -> str:
             "from_number": "+77011234567",
             "to_number": "+77021234567",
         },
-        headers=WRITE_HEADERS,
+        headers={**WRITE_HEADERS, "Idempotency-Key": "rt-call-1"},
     )
+    assert call.status_code == 200, f"Failed to create call: {call.json()}"
     return call.json()["id"]
 
 
@@ -45,7 +47,7 @@ def test_runtime_respond_creates_turn_from_text_input() -> None:
     response = client.post(
         f"/v1/calls/{call_id}/respond",
         json={"input_text": "Хочу записаться на завтра", "voice_id": "nova"},
-        headers=WRITE_HEADERS,
+        headers={**WRITE_HEADERS, "Idempotency-Key": "rt-respond-1"},
     )
     assert response.status_code == 200
     body = response.json()
@@ -70,7 +72,7 @@ def test_runtime_respond_transcribes_audio_reference() -> None:
     response = client.post(
         f"/v1/calls/{call_id}/respond",
         json={"audio_ref": "recordings/chunk-001.wav"},
-        headers=WRITE_HEADERS,
+        headers={**WRITE_HEADERS, "Idempotency-Key": "rt-respond-2"},
     )
     assert response.status_code == 200
     body = response.json()

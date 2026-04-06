@@ -32,3 +32,9 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Migration check files
+migration-check-*.db
+migration-debug.db
+voiceagent_migrations.db
+worker-cli-*.db

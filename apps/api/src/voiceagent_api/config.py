@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     lemon_squeezy_webhook_secret: str = "test-signing-secret"
     default_organization_id: str = "org_default"
     default_organization_name: str = "Default Organization"
+    allowed_origins: str = "*"
+    allowed_hosts: str = "*"
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+    db_pool_recycle: int = 3600
     api_keys: str = Field(
         default="bootstrap,dev-secret-key,orgs:read|orgs:write|api_keys:read|api_keys:write|billing:read|billing:write|agents:read|agents:write|agents:publish|"
         "bookings:read|bookings:write|calls:read|calls:write|events:read|"

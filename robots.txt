@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Allow: /landing.html
+Disallow: /docs/
+Disallow: /contracts/
+Disallow: /backlog/
+Disallow: /prd/
+Disallow: /tests/
+Disallow: /apps/
+Disallow: /packages/
+Disallow: /.github/
+Disallow: /alembic/
+Disallow: /monitoring/
+Disallow: /k8s/
+Disallow: /nginx/
+Disallow: /*.db$
+Disallow: /*.sqlite3$
+
+Sitemap: https://voiceagent.example.com/sitemap.xml

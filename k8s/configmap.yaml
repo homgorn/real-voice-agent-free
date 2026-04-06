@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: voiceagent-config
+data:
+  VOICEAGENT_ENV: "production"
+  VOICEAGENT_LOG_LEVEL: "INFO"
+  VOICEAGENT_DATABASE_URL: "postgresql+psycopg://voiceagent@db:5432/voiceagent"
+  VOICEAGENT_DEFAULT_ORGANIZATION_ID: "org_default"
+  VOICEAGENT_DEFAULT_ORGANIZATION_NAME: "Default Organization"
+  VOICEAGENT_ALLOWED_ORIGINS: "https://voiceagent.example.com"
+  VOICEAGENT_ALLOWED_HOSTS: "api.voiceagent.example.com,voiceagent.example.com"
+  VOICEAGENT_DB_POOL_SIZE: "10"
+  VOICEAGENT_DB_MAX_OVERFLOW: "20"
+  VOICEAGENT_DB_POOL_RECYCLE: "3600"

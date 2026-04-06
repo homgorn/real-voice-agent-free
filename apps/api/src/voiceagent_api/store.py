@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -287,6 +288,7 @@ def _serialize_partner_account(model: PartnerAccountModel, organization: Organiz
         "created_at": model.created_at,
     }
 
+
 def _serialize_organization(model: OrganizationModel) -> dict:
     return {
         "id": model.id,
@@ -487,9 +489,7 @@ class AgentStore:
             organization = session.get(OrganizationModel, settings.default_organization_id)
             if organization is None:
                 return
-            existing = session.scalar(
-                select(PartnerModel).where(PartnerModel.organization_id == organization.id)
-            )
+            existing = session.scalar(select(PartnerModel).where(PartnerModel.organization_id == organization.id))
             if existing is not None:
                 return
             session.add(
@@ -658,7 +658,9 @@ class AgentStore:
 
     def list_plans(self) -> list[dict]:
         with SessionLocal() as session:
-            plans = session.scalars(select(PlanModel).where(PlanModel.is_active.is_(True)).order_by(PlanModel.code)).all()
+            plans = session.scalars(
+                select(PlanModel).where(PlanModel.is_active.is_(True)).order_by(PlanModel.code)
+            ).all()
             return [_serialize_plan(plan) for plan in plans]
 
     def list_subscriptions(self, organization_id: str) -> list[dict]:
@@ -799,8 +801,13 @@ class AgentStore:
                 return None
             if record.request_hash != request_hash:
                 raise IdempotencyConflictError()
+            body = record.response_body
+            if isinstance(body, str):
+                body = json.loads(body) if body else {}
+            elif body is None:
+                body = {}
             return {
-                "response_body": record.response_body or {},
+                "response_body": body,
                 "response_code": record.response_code,
             }
 
@@ -842,7 +849,7 @@ class AgentStore:
                     path=path,
                     request_hash=request_hash,
                     response_code=response_code,
-                    response_body=response_body,
+                    response_body=json.dumps(response_body, default=str),
                     created_at=created_at,
                 )
             )
@@ -990,7 +997,9 @@ class AgentStore:
                 template_id=template.id,
                 timezone=payload.timezone or template.timezone,
                 default_language=payload.default_language or template.default_language,
-                business_hours=payload.business_hours if payload.business_hours is not None else template.business_hours,
+                business_hours=payload.business_hours
+                if payload.business_hours is not None
+                else template.business_hours,
                 status="draft",
                 published_version_id=None,
                 created_at=now,
@@ -1921,9 +1930,7 @@ class AgentStore:
 
     def get_usage_summary(self, organization_id: str) -> dict:
         with SessionLocal() as session:
-            calls = session.scalars(
-                select(CallModel).where(CallModel.organization_id == organization_id)
-            ).all()
+            calls = session.scalars(select(CallModel).where(CallModel.organization_id == organization_id)).all()
             total_calls = len(calls)
             completed_calls = sum(1 for call in calls if call.status == "completed")
             failed_calls = sum(1 for call in calls if call.status == "failed")
@@ -1943,9 +1950,7 @@ class AgentStore:
 
     def get_usage_costs(self, organization_id: str) -> dict:
         with SessionLocal() as session:
-            calls = session.scalars(
-                select(CallModel).where(CallModel.organization_id == organization_id)
-            ).all()
+            calls = session.scalars(select(CallModel).where(CallModel.organization_id == organization_id)).all()
             total_duration_ms = sum(call.duration_ms or 0 for call in calls)
 
             turns = session.scalars(
@@ -2123,7 +2128,9 @@ class AgentStore:
             session.commit()
             return _serialize_license(record)
 
-    def _upsert_subscription(self, session, *, organization_id: str, external_id: str, attrs: dict, received_at: datetime, custom_data: dict) -> SubscriptionModel:
+    def _upsert_subscription(
+        self, session, *, organization_id: str, external_id: str, attrs: dict, received_at: datetime, custom_data: dict
+    ) -> SubscriptionModel:
         item = session.get(SubscriptionModel, external_id)
         if item is None:
             item = SubscriptionModel(
@@ -2164,7 +2171,9 @@ class AgentStore:
         session.add(item)
         return item
 
-    def _upsert_license(self, session, *, organization_id: str, external_id: str, attrs: dict, received_at: datetime) -> LicenseModel:
+    def _upsert_license(
+        self, session, *, organization_id: str, external_id: str, attrs: dict, received_at: datetime
+    ) -> LicenseModel:
         item = session.get(LicenseModel, external_id)
         key_value = attrs.get("key")
         key_short = None
@@ -2192,7 +2201,9 @@ class AgentStore:
             )
         else:
             item.organization_id = organization_id
-            item.subscription_id = str(attrs.get("subscription_id")) if attrs.get("subscription_id") else item.subscription_id
+            item.subscription_id = (
+                str(attrs.get("subscription_id")) if attrs.get("subscription_id") else item.subscription_id
+            )
             item.order_id = attrs.get("order_id")
             item.order_item_id = attrs.get("order_item_id")
             item.product_id = attrs.get("product_id")

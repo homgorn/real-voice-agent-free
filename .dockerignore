@@ -9,3 +9,13 @@ venv
 *.db
 *.sqlite3
 tests
+migration-check-*.db
+migration-debug.db
+voiceagent_migrations.db
+worker-cli-*.db
+prd
+backlog
+docs
+contracts
+packages
+pytest-cache-files-*

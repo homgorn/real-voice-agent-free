@@ -34,11 +34,14 @@ def test_worker_run_once_processes_due_delivery(monkeypatch) -> None:
             "target_url": "https://example.com/webhooks/voiceagent",
             "event_types": ["webhook.test"],
         },
-        headers=WRITE_HEADERS,
+        headers={**WRITE_HEADERS, "Idempotency-Key": "worker-webhook-1"},
     )
+    assert hook.status_code == 200, f"Failed to create webhook: {hook.json()}"
     webhook_id = hook.json()["id"]
 
-    created = client.post(f"/v1/webhooks/{webhook_id}/test", headers=WRITE_HEADERS)
+    created = client.post(
+        f"/v1/webhooks/{webhook_id}/test", headers={**WRITE_HEADERS, "Idempotency-Key": "worker-webhook-test-1"}
+    )
     delivery_id = created.json()["delivery_id"]
 
     with SessionLocal() as session:

@@ -32,7 +32,10 @@ def require_scope(required_scope: str):
         key_hash = hash_api_key(api_key)
         with SessionLocal() as session:
             key_model = session.scalar(
-                select(ApiKeyModel).where(ApiKeyModel.key_hash == key_hash, ApiKeyModel.is_active.is_(True))
+                select(ApiKeyModel).where(
+                    ApiKeyModel.key_hash == key_hash,
+                    ApiKeyModel.is_active.is_(True),
+                )
             )
             if key_model is None:
                 raise AuthenticationError()

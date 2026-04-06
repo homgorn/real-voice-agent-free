@@ -2,56 +2,92 @@ version: "3.9"
 
 services:
   db:
-    image: postgres:17
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: voiceagent
       POSTGRES_USER: voiceagent
-      POSTGRES_PASSWORD: voiceagent
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-voiceagent}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voiceagent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:7-alpine
+    command: valkey-server --requirepass ${VALKEY_PASSWORD:-valkey}
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-a", "${VALKEY_PASSWORD:-valkey}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     environment:
       VOICEAGENT_ENV: development
       VOICEAGENT_LOG_LEVEL: INFO
-      VOICEAGENT_DATABASE_URL: postgresql+psycopg://voiceagent:voiceagent@db:5432/voiceagent
+      VOICEAGENT_DATABASE_URL: postgresql+psycopg://voiceagent:${DB_PASSWORD:-voiceagent}@db:5432/voiceagent
       VOICEAGENT_WEBHOOK_TIMEOUT_SECONDS: 5
       VOICEAGENT_WEBHOOK_MAX_ATTEMPTS: 5
       VOICEAGENT_WEBHOOK_RETRY_BACKOFF_SECONDS: 30
       VOICEAGENT_WEBHOOK_DELIVERY_BATCH_SIZE: 25
       VOICEAGENT_WEBHOOK_WORKER_POLL_INTERVAL_SECONDS: 5
       VOICEAGENT_LEMON_SQUEEZY_API_BASE: https://api.lemonsqueezy.com
-      VOICEAGENT_LEMON_SQUEEZY_WEBHOOK_SECRET: test-signing-secret
+      VOICEAGENT_LEMON_SQUEEZY_WEBHOOK_SECRET: ${LEMON_SQUEEZY_WEBHOOK_SECRET:-test-signing-secret}
       VOICEAGENT_DEFAULT_ORGANIZATION_ID: org_default
       VOICEAGENT_DEFAULT_ORGANIZATION_NAME: Default Organization
-      VOICEAGENT_API_KEYS: bootstrap,dev-secret-key,orgs:read|api_keys:read|billing:read|billing:write|agents:read|agents:write|agents:publish|bookings:read|bookings:write|calls:read|calls:write|events:read|webhooks:read|webhooks:write;readonly,read-only-key,orgs:read|api_keys:read|billing:read|agents:read|bookings:read|calls:read|events:read|webhooks:read
+      VOICEAGENT_API_KEYS: ${VOICEAGENT_API_KEYS:-bootstrap,dev-secret-key,orgs:read|orgs:write|api_keys:read|api_keys:write|billing:read|billing:write|agents:read|agents:write|agents:publish|bookings:read|bookings:write|calls:read|calls:write|events:read|webhooks:read|webhooks:write;readonly,read-only-key,orgs:read|api_keys:read|billing:read|agents:read|bookings:read|calls:read|events:read|webhooks:read}
+      VOICEAGENT_ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+      VOICEAGENT_ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
 
   worker:
-    build: .
-    command: ["sh", "-c", "python -m alembic upgrade head && python -m voiceagent_api.worker"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["sh", "-c", "alembic upgrade head && python -m voiceagent_api.worker"]
     environment:
       VOICEAGENT_ENV: development
       VOICEAGENT_LOG_LEVEL: INFO
-      VOICEAGENT_DATABASE_URL: postgresql+psycopg://voiceagent:voiceagent@db:5432/voiceagent
+      VOICEAGENT_DATABASE_URL: postgresql+psycopg://voiceagent:${DB_PASSWORD:-voiceagent}@db:5432/voiceagent
       VOICEAGENT_WEBHOOK_TIMEOUT_SECONDS: 5
       VOICEAGENT_WEBHOOK_MAX_ATTEMPTS: 5
       VOICEAGENT_WEBHOOK_RETRY_BACKOFF_SECONDS: 30
       VOICEAGENT_WEBHOOK_DELIVERY_BATCH_SIZE: 25
       VOICEAGENT_WEBHOOK_WORKER_POLL_INTERVAL_SECONDS: 5
       VOICEAGENT_LEMON_SQUEEZY_API_BASE: https://api.lemonsqueezy.com
-      VOICEAGENT_LEMON_SQUEEZY_WEBHOOK_SECRET: test-signing-secret
+      VOICEAGENT_LEMON_SQUEEZY_WEBHOOK_SECRET: ${LEMON_SQUEEZY_WEBHOOK_SECRET:-test-signing-secret}
       VOICEAGENT_DEFAULT_ORGANIZATION_ID: org_default
       VOICEAGENT_DEFAULT_ORGANIZATION_NAME: Default Organization
-      VOICEAGENT_API_KEYS: bootstrap,dev-secret-key,orgs:read|api_keys:read|billing:read|billing:write|agents:read|agents:write|agents:publish|bookings:read|bookings:write|calls:read|calls:write|events:read|webhooks:read|webhooks:write;readonly,read-only-key,orgs:read|api_keys:read|billing:read|agents:read|bookings:read|calls:read|events:read|webhooks:read
+      VOICEAGENT_API_KEYS: ${VOICEAGENT_API_KEYS:-bootstrap,dev-secret-key,orgs:read|orgs:write|api_keys:read|api_keys:write|billing:read|billing:write|agents:read|agents:write|agents:publish|bookings:read|bookings:write|calls:read|calls:write|events:read|webhooks:read|webhooks:write;readonly,read-only-key,orgs:read|api_keys:read|billing:read|agents:read|bookings:read|calls:read|events:read|webhooks:read}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  valkey_data:

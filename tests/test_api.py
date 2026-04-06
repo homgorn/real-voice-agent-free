@@ -422,7 +422,9 @@ def test_webhook_creation_and_test_delivery(monkeypatch) -> None:
     assert list_hooks.status_code == 200
     assert list_hooks.json()["total"] == 1
 
-    test_delivery = client.post(f"/v1/webhooks/{hook_body['id']}/test", headers=WRITE_HEADERS)
+    test_delivery = client.post(
+        f"/v1/webhooks/{hook_body['id']}/test", headers=with_idempotency(WRITE_HEADERS, "idem-webhook-test-1")
+    )
     assert test_delivery.status_code == 200
     delivery_body = test_delivery.json()
     assert delivery_body["webhook_id"] == hook_body["id"]
@@ -460,14 +462,16 @@ def test_manual_retry_redelivers_failed_webhook(monkeypatch) -> None:
     )
     webhook_id = hook.json()["id"]
 
-    created = client.post(f"/v1/webhooks/{webhook_id}/test", headers=WRITE_HEADERS)
+    created = client.post(
+        f"/v1/webhooks/{webhook_id}/test", headers=with_idempotency(WRITE_HEADERS, "idem-webhook-test-2")
+    )
     assert created.status_code == 200
     assert created.json()["status"] == "retry_scheduled"
     delivery_id = created.json()["delivery_id"]
 
     retried = client.post(
         f"/v1/webhooks/{webhook_id}/deliveries/{delivery_id}/retry",
-        headers=WRITE_HEADERS,
+        headers=with_idempotency(WRITE_HEADERS, "idem-webhook-retry-1"),
     )
     assert retried.status_code == 200
     assert retried.json()["id"] == delivery_id
@@ -496,7 +500,9 @@ def test_process_webhook_queue_retries_due_deliveries(monkeypatch) -> None:
     )
     webhook_id = hook.json()["id"]
 
-    created = client.post(f"/v1/webhooks/{webhook_id}/test", headers=WRITE_HEADERS)
+    created = client.post(
+        f"/v1/webhooks/{webhook_id}/test", headers=with_idempotency(WRITE_HEADERS, "idem-webhook-test-3")
+    )
     assert created.status_code == 200
     delivery_id = created.json()["delivery_id"]
 
@@ -577,9 +583,10 @@ def test_lemonsqueezy_webhook_updates_subscription(monkeypatch) -> None:
 
 
 def test_license_validate_syncs_license(monkeypatch) -> None:
-    app_module = importlib.import_module("voiceagent_api.app")
+    from voiceagent_api import lemonsqueezy as ls_module
+
     monkeypatch.setattr(
-        app_module,
+        ls_module,
         "validate_license_key",
         lambda **kwargs: {
             "valid": True,
@@ -664,7 +671,7 @@ def test_phone_numbers_crud() -> None:
     updated = client.patch(
         f"/v1/phone-numbers/{number_id}",
         json={"label": "Front Desk Line", "status": "inactive"},
-        headers=WRITE_HEADERS,
+        headers=with_idempotency(WRITE_HEADERS, "idem-number-update-1"),
     )
     assert updated.status_code == 200
     assert updated.json()["status"] == "inactive"
@@ -686,7 +693,9 @@ def test_integrations_connect_and_test() -> None:
     assert listed.status_code == 200
     assert listed.json()["total"] == 1
 
-    tested = client.post("/v1/integrations/calendar/test", headers=WRITE_HEADERS)
+    tested = client.post(
+        "/v1/integrations/calendar/test", headers=with_idempotency(WRITE_HEADERS, "idem-integration-test-1")
+    )
     assert tested.status_code == 200
     assert tested.json()["status"] == "healthy"
 
