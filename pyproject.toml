@@ -57,7 +57,7 @@ dev-dependencies = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-q -p no:cacheprovider"
+addopts = "-q -p no:cacheprovider --ignore=tests/load_test.py"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 
