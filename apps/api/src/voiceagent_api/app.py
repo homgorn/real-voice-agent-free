@@ -40,8 +40,8 @@ async def lifespan(app: FastAPI):
         return
     logger.info("Starting VoiceAgent API (env=%s)", settings.env)
     try:
-        create_database()
-        ping_database()
+        await create_database()
+        await ping_database()
         logger.info("Database initialized and ready")
     except Exception:
         logger.warning("Database not available at startup (env=%s)", settings.env)
@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Shutting down VoiceAgent API")
     try:
-        close_database()
+        await close_database()
     except Exception:
         pass
     try:

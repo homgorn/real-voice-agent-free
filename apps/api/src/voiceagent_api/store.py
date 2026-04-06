@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select
 from voiceagent_api.adapters.calendar import CalendarBookingRequest, CalendarBookingUpdateRequest, get_calendar_adapter
 from voiceagent_api.auth import hash_api_key
 from voiceagent_api.config import settings
-from voiceagent_api.db import create_database, drop_database, ping_database, SessionLocal
+from voiceagent_api.db import SessionLocal, _sync_create_database, _sync_drop_database, _sync_ping_database
 from voiceagent_api.errors import IdempotencyConflictError, NotFoundError
 from voiceagent_api.lemonsqueezy import extract_event_metadata
 from voiceagent_api.models import (
@@ -366,22 +366,22 @@ def _serialize_license(model: LicenseModel) -> dict:
 
 class AgentStore:
     def __init__(self) -> None:
-        create_database()
+        _sync_create_database()
         self.seed_bootstrap_security()
         self.seed_bootstrap_plans()
         self.seed_bootstrap_templates()
         self.seed_bootstrap_partner()
 
     def reset(self) -> None:
-        drop_database()
-        create_database()
+        _sync_drop_database()
+        _sync_create_database()
         self.seed_bootstrap_security()
         self.seed_bootstrap_plans()
         self.seed_bootstrap_templates()
         self.seed_bootstrap_partner()
 
     def ping(self) -> None:
-        ping_database()
+        _sync_ping_database()
 
     def seed_bootstrap_security(self) -> None:
         now = datetime.now().astimezone()
