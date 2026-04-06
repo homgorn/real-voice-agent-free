@@ -784,6 +784,15 @@ class AgentStore:
         path: str,
         request_hash: str,
     ) -> dict | None:
+        from voiceagent_api.cache import get as cache_get
+
+        cache_key = f"idemp:{organization_id}:{method}:{path}:{key}"
+        cached = cache_get(cache_key)
+        if cached is not None:
+            if cached.get("request_hash") != request_hash:
+                raise IdempotencyConflictError()
+            return {"response_body": cached["response_body"], "response_code": cached["response_code"]}
+
         record_id = self._idempotency_id(
             organization_id=organization_id,
             method=method,
@@ -854,6 +863,19 @@ class AgentStore:
                 )
             )
             session.commit()
+
+        from voiceagent_api.cache import set as cache_set
+
+        cache_key = f"idemp:{organization_id}:{method}:{path}:{key}"
+        cache_set(
+            cache_key,
+            {
+                "request_hash": request_hash,
+                "response_body": response_body,
+                "response_code": response_code,
+            },
+            ttl=settings.idempotency_ttl_seconds,
+        )
 
     def _next_webhook_attempt_at(self, *, attempt_count: int, now: datetime) -> datetime | None:
         if attempt_count >= settings.webhook_max_attempts:

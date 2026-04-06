@@ -52,8 +52,11 @@ services:
       VOICEAGENT_API_KEYS: ${VOICEAGENT_API_KEYS:-bootstrap,dev-secret-key,orgs:read|orgs:write|api_keys:read|api_keys:write|billing:read|billing:write|agents:read|agents:write|agents:publish|bookings:read|bookings:write|calls:read|calls:write|events:read|webhooks:read|webhooks:write;readonly,read-only-key,orgs:read|api_keys:read|billing:read|agents:read|bookings:read|calls:read|events:read|webhooks:read}
       VOICEAGENT_ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
       VOICEAGENT_ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      VOICEAGENT_VALKEY_URL: valkey://:${VALKEY_PASSWORD:-valkey}@valkey:6379/0
     depends_on:
       db:
+        condition: service_healthy
+      valkey:
         condition: service_healthy
     ports:
       - "8000:8000"
@@ -83,8 +86,11 @@ services:
       VOICEAGENT_DEFAULT_ORGANIZATION_ID: org_default
       VOICEAGENT_DEFAULT_ORGANIZATION_NAME: Default Organization
       VOICEAGENT_API_KEYS: ${VOICEAGENT_API_KEYS:-bootstrap,dev-secret-key,orgs:read|orgs:write|api_keys:read|api_keys:write|billing:read|billing:write|agents:read|agents:write|agents:publish|bookings:read|bookings:write|calls:read|calls:write|events:read|webhooks:read|webhooks:write;readonly,read-only-key,orgs:read|api_keys:read|billing:read|agents:read|bookings:read|calls:read|events:read|webhooks:read}
+      VOICEAGENT_VALKEY_URL: valkey://:${VALKEY_PASSWORD:-valkey}@valkey:6379/0
     depends_on:
       db:
+        condition: service_healthy
+      valkey:
         condition: service_healthy
     restart: unless-stopped
 

@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_recycle: int = 3600
+    valkey_url: str = ""
+    rate_limit_default: int = 60
+    rate_limit_strict: int = 10
     api_keys: str = Field(
         default="bootstrap,dev-secret-key,orgs:read|orgs:write|api_keys:read|api_keys:write|billing:read|billing:write|agents:read|agents:write|agents:publish|"
         "bookings:read|bookings:write|calls:read|calls:write|events:read|"

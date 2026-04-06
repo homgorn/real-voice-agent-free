@@ -14,6 +14,7 @@ from voiceagent_api.config import settings
 from voiceagent_api.db import close_database, create_database, ping_database
 from voiceagent_api.errors import VoiceAgentError
 from voiceagent_api.schemas import ErrorResponse
+from voiceagent_api.middleware import RateLimitMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,8 @@ def create_app() -> FastAPI:
         TrustedHostMiddleware,
         allowed_hosts=settings.allowed_hosts.split(",") if settings.allowed_hosts else ["*"],
     )
+
+    app.add_middleware(RateLimitMiddleware)
 
     from voiceagent_api.routers.health import router as health_router
     from voiceagent_api.routers.organizations import router as organizations_router
