@@ -1,23 +1,25 @@
-# Stage 1: Build dependencies
+# Stage 1: Build dependencies with uv
+FROM ghcr.io/astral-sh/uv:latest AS uv
+
+# Stage 2: Install dependencies
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
+COPY --from=uv /uv /usr/local/bin/uv
 COPY pyproject.toml ./
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir .
+RUN uv sync --frozen --no-dev --no-install-project
 
-# Stage 2: Runtime
+# Stage 3: Runtime
 FROM python:3.12-slim AS runtime
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PATH="/app/.venv/bin:$PATH"
 
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
-COPY --from=builder /usr/local/bin/alembic /usr/local/bin/alembic
+COPY --from=builder /app/.venv /app/.venv
 
 COPY apps ./apps
 COPY alembic.ini ./
