@@ -29,12 +29,12 @@
 - [x] Lifespan pattern for graceful startup/shutdown
 - [x] Idempotency on ALL POST/PATCH mutation endpoints (was only critical POSTs)
 - [x] JSON serialization fix for idempotency cache (SQLAlchemy JSON column)
-- [x] Multi-stage Dockerfile
+- [x] Multi-stage Dockerfile (uv)
 - [x] Kubernetes manifests (deployment, service, ingress, HPA, configmap, secrets)
 - [x] Nginx reverse proxy with rate limiting
 - [x] OpenTelemetry Collector config
 - [x] Prometheus + Alertmanager config
-- [x] GitHub Actions CI/CD (lint, test, security, docker)
+- [x] GitHub Actions CI/CD (uv + Ruff + Pytest + Security + Docker)
 - [x] Pre-commit hooks (Ruff + compile)
 - [x] SEO landing page with JSON-LD (WebApplication, FAQPage, HowTo, SpeakableSpecification)
 - [x] robots.txt + sitemap.xml
@@ -42,12 +42,17 @@
 - [x] Updated README.md with SEO keywords
 - [x] 33/33 tests passing
 - [x] Makefile for dev commands
+- [x] UV package manager migration (pyproject.toml, CI, Dockerfile)
+- [x] Valkey integration (idempotency cache + rate limiting middleware)
+- [x] OpenTelemetry SDK + /metrics endpoint (Prometheus format)
+- [x] Async SQLAlchemy engine (asyncpg + aiosqlite drivers)
+- [x] Locust load tests (tests/load_test.py)
+- [x] CHANGELOG.md (Keep a Changelog format)
+- [x] CODE_OF_CONDUCT.md (Contributor Covenant v2.1)
+- [x] CHAT_HISTORY.md
+- [x] .editorconfig
 
 ## 🔄 In Progress
-- [ ] Async SQLAlchemy migration (asyncpg)
-- [ ] Valkey integration for idempotency + rate limiting
-- [ ] OpenTelemetry SDK instrumentation
-- [ ] Prometheus /metrics endpoint
 - [ ] SQL-level pagination (replace in-memory)
 - [ ] Store.py refactoring into domain services
 - [ ] Replace _serialize_* with Pydantic model_validate
@@ -88,13 +93,6 @@
 |------|----------|--------|--------|
 | store.py → domain services | High | Large | Planned |
 | In-memory pagination → SQL | High | Medium | Planned |
-| Sync runtime → async | Medium | Medium | Planned |
-| Usage cost calculation → SQL aggregation | Medium | Small | Planned |
 | _serialize_* → Pydantic model_validate | Medium | Medium | Planned |
-| Async SQLAlchemy (asyncpg) | Medium | Medium | Planned |
-| Valkey integration | Medium | Medium | Planned |
-| OpenTelemetry SDK instrumentation | Medium | Medium | Planned |
-| In-memory pagination → SQL | High | Medium | Planned |
-| SHA-256 → bcrypt for existing keys | Medium | Small | Done (new keys) |
-| Sync runtime → async | Medium | Medium | Planned |
 | Usage cost calculation → SQL aggregation | Medium | Small | Planned |
+| Sync runtime → async | Medium | Medium | Planned |
