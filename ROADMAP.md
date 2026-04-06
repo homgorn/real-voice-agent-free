@@ -51,9 +51,9 @@
 - [x] CODE_OF_CONDUCT.md (Contributor Covenant v2.1)
 - [x] CHAT_HISTORY.md
 - [x] .editorconfig
+- [x] SQL-level pagination (agents, calls, bookings, events, webhooks — SQL LIMIT/OFFSET + COUNT)
 
 ## 🔄 In Progress
-- [ ] SQL-level pagination (replace in-memory)
 - [ ] Store.py refactoring into domain services
 - [ ] Replace _serialize_* with Pydantic model_validate
 
@@ -92,7 +92,7 @@
 | Item | Priority | Effort | Status |
 |------|----------|--------|--------|
 | store.py → domain services | High | Large | Planned |
-| In-memory pagination → SQL | High | Medium | Planned |
 | _serialize_* → Pydantic model_validate | Medium | Medium | Planned |
 | Usage cost calculation → SQL aggregation | Medium | Small | Planned |
 | Sync runtime → async | Medium | Medium | Planned |
+| In-memory pagination → SQL | High | Medium | Done (agents, calls, bookings, events, webhooks) |
