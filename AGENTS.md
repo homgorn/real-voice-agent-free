@@ -95,12 +95,11 @@ apps/api/src/voiceagent_api/
 - [x] Makefile (uv-based)
 - [x] AGENTS.md, CONTEXT_MAP.md, ROADMAP.md, SECURITY.md, USAGE.md
 
-### Phase 4: Remaining from Bootstrap (TODO)
-- [ ] OpenTelemetry SDK + `/metrics` endpoint (otel-collector already configured)
-- [ ] Async SQLAlchemy (asyncpg driver)
-- [ ] Locust load tests
-- [ ] Gunicorn config (bare metal/Docker only, NOT K8s)
-- [ ] CHANGELOG.md (Keep a Changelog format)
-- [ ] CODE_OF_CONDUCT.md
-- [ ] CHAT_HISTORY.md
-- [ ] .editorconfig
+### Phase 4: Remaining from Bootstrap (DONE)
+- [x] OpenTelemetry SDK + `/metrics` endpoint (otel-collector already configured)
+- [x] Locust load tests (tests/load_test.py)
+- [x] CHANGELOG.md (Keep a Changelog format)
+- [x] CODE_OF_CONDUCT.md (Contributor Covenant v2.1)
+- [x] CHAT_HISTORY.md
+- [x] .editorconfig
+- [ ] Async SQLAlchemy (asyncpg driver) — deferred: requires full store.py rewrite
