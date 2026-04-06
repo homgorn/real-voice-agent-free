@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VoiceAgent — Open-Source AI Phone Agent Platform for SMBs</title>
-    <meta name="description" content="VoiceAgent is an open-source voice AI platform that automates inbound calls, appointment scheduling, and customer support for service businesses. API-first, multi-tenant, with observability.">
-    <meta name="keywords" content="voice ai, ai phone agent, call automation, appointment scheduling, customer support automation, open-source voice agent, voice bot platform, smb call handling, ai receptionist, voice api">
+    <meta name="description" content="Open-source voice AI platform for SMBs. Automate inbound calls, bookings, and support with AI phone agents. FastAPI, multi-tenant, API-first.">
+    <meta name="keywords" content="voice ai, ai phone agent, call automation, appointment scheduling, open-source, voice bot, ai receptionist, fastapi, multi-tenant">
     <meta name="author" content="VoiceAgent">
     <meta name="publisher" content="VoiceAgent">
     <meta name="robots" content="index, follow">
@@ -14,12 +14,12 @@
     <link rel="alternate" hreflang="x-default" href="https://homgorn.github.io/real-voice-agent-free/landing.html">
 
     <meta property="og:title" content="VoiceAgent — Open-Source AI Phone Agent Platform">
-    <meta property="og:description" content="Automate inbound calls, bookings, and customer support with AI phone agents. Open-source, API-first, multi-tenant.">
+    <meta property="og:description" content="Automate inbound calls, bookings, and support with AI phone agents. Open-source, API-first, multi-tenant.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://homgorn.github.io/real-voice-agent-free/landing.html">
     <meta property="og:locale" content="en_US">
     <meta property="og:site_name" content="VoiceAgent">
-    <meta property="og:image" content="https://homgorn.github.io/real-voice-agent-free/og-image.png">
+    <meta property="og:image" content="https://homgorn.github.io/real-voice-agent-free/og-image.svg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="VoiceAgent — Open-Source AI Phone Agent Platform">
@@ -28,12 +28,11 @@
     <meta name="twitter:site" content="@homgorn">
     <meta name="twitter:creator" content="@homgorn">
     <meta name="twitter:title" content="VoiceAgent — Open-Source AI Phone Agent Platform">
-    <meta name="twitter:description" content="Automate inbound calls, bookings, and customer support with AI phone agents. Open-source, API-first, multi-tenant.">
-    <meta name="twitter:image" content="https://homgorn.github.io/real-voice-agent-free/og-image.png">
+    <meta name="twitter:description" content="Automate inbound calls, bookings, and support with AI phone agents. Open-source, API-first, multi-tenant.">
+    <meta name="twitter:image" content="https://homgorn.github.io/real-voice-agent-free/og-image.svg">
     <meta name="twitter:image:alt" content="VoiceAgent — Open-Source AI Phone Agent Platform">
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236c63ff'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>V</text></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%236c63ff'/><text x='90' y='125' font-size='100' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>V</text></svg>">
 
     <script type="application/ld+json">
     {
@@ -55,6 +54,11 @@
         "name": "VoiceAgent",
         "url": "https://github.com/homgorn/real-voice-agent-free",
         "sameAs": ["https://github.com/homgorn/real-voice-agent-free"]
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "VoiceAgent",
+        "url": "https://github.com/homgorn/real-voice-agent-free"
       }
     }
     </script>
@@ -65,6 +69,11 @@
       "@type": "WebSite",
       "name": "VoiceAgent",
       "url": "https://homgorn.github.io/real-voice-agent-free/landing.html",
+      "publisher": {
+        "@type": "Organization",
+        "name": "VoiceAgent",
+        "url": "https://github.com/homgorn/real-voice-agent-free"
+      },
       "potentialAction": {
         "@type": "SearchAction",
         "target": "https://github.com/homgorn/real-voice-agent-free?q={search_term_string}",
@@ -99,7 +108,7 @@
           "name": "Is VoiceAgent open-source?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes, VoiceAgent is open-source under the OSS Core model. The core API, runtime orchestrator, and worker are freely available. A hosted Cloud/Pro edition adds analytics, billing sync, and managed integrations."
+            "text": "Yes, VoiceAgent is open-source under the MIT license. The core API, runtime orchestrator, and worker are freely available. A hosted Cloud edition adds analytics, billing sync, and managed integrations."
           }
         },
         {
@@ -115,7 +124,7 @@
           "name": "How does VoiceAgent ensure call reliability?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "VoiceAgent provides idempotency protection for all critical operations, webhook delivery with retry-aware logic, agent versioning with rollback, and comprehensive error categorization (telephony, STT, TTS, LLM, tool, integration, internal)."
+            "text": "VoiceAgent provides idempotency protection for all critical operations, webhook delivery with retry-aware logic, agent versioning with rollback, and comprehensive error categorization."
           }
         }
       ]
@@ -145,7 +154,7 @@
           "@type": "HowToStep",
           "position": 3,
           "name": "Create your first agent",
-          "text": "Use the API to create an agent from a template, configure business hours, and publish to production"
+          "text": "Use the REST API to create an agent from a template, configure business hours, and publish to production"
         },
         {
           "@type": "HowToStep",
@@ -179,11 +188,6 @@
       "name": "VoiceAgent",
       "operatingSystem": "Web",
       "applicationCategory": "DeveloperApplication",
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.8",
-        "ratingCount": "127"
-      },
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -210,11 +214,11 @@
         .hero{text-align:center;padding:80px 20px 60px;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:#fff}
         .hero h1{font-size:2.8rem;margin-bottom:16px;font-weight:800}
         .hero p{font-size:1.25rem;opacity:0.9;max-width:650px;margin:0 auto 32px}
-        .cta-btn{display:inline-block;padding:14px 36px;background:#6c63ff;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:1.1rem;transition:transform .2s}
+        .cta-btn{display:inline-block;padding:16px 40px;background:#6c63ff;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:1.1rem;transition:transform .2s;min-height:48px;line-height:1.5}
         .cta-btn:hover{transform:translateY(-2px)}
-        .status-bar{display:flex;justify-content:center;gap:32px;padding:20px;background:#fff;border-bottom:1px solid #eee}
-        .status-item{display:flex;align-items:center;gap:8px;font-size:0.9rem;color:#555}
-        .status-dot{width:10px;height:10px;border-radius:50%;background:#22c55e}
+        .status-bar{display:flex;justify-content:center;gap:32px;padding:20px;background:#fff;border-bottom:1px solid #eee;flex-wrap:wrap}
+        .status-item{display:flex;align-items:center;gap:8px;font-size:0.9rem;color:#555;min-height:44px;padding:4px 8px}
+        .status-dot{width:12px;height:12px;border-radius:50%;background:#22c55e;flex-shrink:0}
         .features{padding:60px 20px}
         .features h2{text-align:center;font-size:2rem;margin-bottom:40px}
         .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
@@ -239,7 +243,7 @@
         .faq{padding:50px 20px}
         .faq h2{text-align:center;font-size:2rem;margin-bottom:40px}
         .faq details{background:#fff;padding:20px;margin-bottom:12px;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,0.05)}
-        .faq summary{font-weight:600;cursor:pointer;font-size:1.05rem}
+        .faq summary{font-weight:600;cursor:pointer;font-size:1.05rem;min-height:44px;display:flex;align-items:center}
         .faq details p{margin-top:12px;color:#555}
         footer{padding:30px 20px;text-align:center;background:#1a1a2e;color:#aaa;font-size:0.9rem}
         footer a{color:#6c63ff;text-decoration:none}
@@ -247,83 +251,86 @@
     </style>
 </head>
 <body>
-    <section class="hero">
+    <header class="hero">
         <div class="container">
             <h1>Open-Source AI Phone Agent Platform</h1>
             <p>Automate inbound calls, appointment scheduling, and customer support for service businesses. API-first, multi-tenant, with full observability.</p>
-            <a href="https://github.com/homgorn/real-voice-agent-free" class="cta-btn">Get Started on GitHub</a>
+            <a href="https://github.com/homgorn/real-voice-agent-free" class="cta-btn">View on GitHub</a>
         </div>
-    </section>
+    </header>
 
-    <div class="status-bar">
-        <div class="status-item"><span class="status-dot"></span> API Operational</div>
-        <div class="status-item"><span class="status-dot"></span> PostgreSQL Ready</div>
-        <div class="status-item"><span class="status-dot"></span> Valkey Cache Active</div>
-        <div class="status-item"><span class="status-dot"></span> 99.9% Uptime</div>
-    </div>
+    <nav class="status-bar" aria-label="System status">
+        <span class="status-item"><span class="status-dot" aria-hidden="true"></span> FastAPI Backend</span>
+        <span class="status-item"><span class="status-dot" aria-hidden="true"></span> PostgreSQL Support</span>
+        <span class="status-item"><span class="status-dot" aria-hidden="true"></span> 14 API Endpoints</span>
+        <span class="status-item"><span class="status-dot" aria-hidden="true"></span> MIT License</span>
+    </nav>
 
-    <section class="features">
-        <div class="container">
-            <h2>Core Features</h2>
-            <div class="features-grid">
-                <div class="feature-card"><h3>AI Phone Agents</h3><p>Multi-tenant agents with versioning, rollback, and vertical templates for receptionist, FAQ, and booking workflows.</p></div>
-                <div class="feature-card"><h3>Call Observability</h3><p>Per-turn latency, per-provider cost breakdown, trace IDs, and structured error categorization for every call.</p></div>
-                <div class="feature-card"><h3>Appointment Scheduling</h3><p>Calendar adapter interface supports Google Calendar, Calendly, and custom providers with conflict resolution.</p></div>
-                <div class="feature-card"><h3>Webhook Integrations</h3><p>HMAC-signed webhooks with retry-aware delivery, exponential backoff, and manual retry for failed deliveries.</p></div>
-                <div class="feature-card"><h3>Provider Abstraction</h3><p>Pluggable STT, TTS, LLM, telephony, and CRM adapters. No vendor lock-in. Switch providers without code changes.</p></div>
-                <div class="feature-card"><h3>Partner & Agency</h3><p>White-label ready with partner referral system, sub-account management, and multi-organization support.</p></div>
+    <main>
+        <section class="features" aria-labelledby="features-heading">
+            <div class="container">
+                <h2 id="features-heading">Core Features</h2>
+                <div class="features-grid">
+                    <article class="feature-card"><h3>AI Phone Agents</h3><p>Multi-tenant agents with versioning, rollback, and vertical templates for receptionist, FAQ, and booking workflows.</p></article>
+                    <article class="feature-card"><h3>Call Observability</h3><p>Per-turn latency, per-provider cost breakdown, trace IDs, and structured error categorization for every call.</p></article>
+                    <article class="feature-card"><h3>Appointment Scheduling</h3><p>Calendar adapter interface supports Google Calendar, Calendly, and custom providers with conflict resolution.</p></article>
+                    <article class="feature-card"><h3>Webhook Integrations</h3><p>HMAC-signed webhooks with retry-aware delivery, exponential backoff, and manual retry for failed deliveries.</p></article>
+                    <article class="feature-card"><h3>Provider Abstraction</h3><p>Pluggable STT, TTS, LLM, telephony, and CRM adapters. No vendor lock-in. Switch providers without code changes.</p></article>
+                    <article class="feature-card"><h3>Partner and Agency</h3><p>White-label ready with partner referral system, sub-account management, and multi-organization support.</p></article>
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section class="text-block">
-        <div class="container">
-            <h2>Why VoiceAgent for Service Businesses?</h2>
-            <p>VoiceAgent is an open-source voice AI platform designed specifically for SMB service businesses — dental clinics, salons, auto repair shops, law firms, and consulting practices. It automates inbound phone calls with AI receptionists that can answer FAQs, schedule appointments, capture leads, and escalate to humans when needed.</p>
-            <p>Unlike generic voice AI tools, VoiceAgent provides full call observability: every turn is traced with latency metrics, every provider call is costed, and every error is categorized. This makes debugging and optimizing your voice agents a systematic process rather than guesswork.</p>
-            <p>The platform follows an API-first design: everything you can do in a future dashboard UI is available through the REST API. Multi-tenant organizations with scoped API keys ensure data isolation between customers. Agent versioning with rollback means you can safely iterate on your agent configurations.</p>
-            <p>Built with FastAPI, PostgreSQL, and a provider adapter pattern, VoiceAgent is designed for high-load production use. The OSS Core is free and self-hostable. The Cloud edition adds hosted analytics, billing sync with Lemon Squeezy, and managed integrations.</p>
-        </div>
-    </section>
-
-    <section class="how-to">
-        <div class="container">
-            <h2>Get Started in 4 Steps</h2>
-            <div class="steps">
-                <div class="step"><div class="step-num">1</div><h3>Clone & Install</h3><p>Clone the repo and run pip install -e .[dev] to set up the development environment.</p></div>
-                <div class="step"><div class="step-num">2</div><h3>Start the Stack</h3><p>Run docker compose up --build to launch the API, worker, and PostgreSQL database.</p></div>
-                <div class="step"><div class="step-num">3</div><h3>Create an Agent</h3><p>Use the REST API to instantiate a template, configure business hours, and publish.</p></div>
-                <div class="step"><div class="step-num">4</div><h3>Go Live</h3><p>Connect your telephony provider, configure webhooks, and start handling calls.</p></div>
+        <section class="text-block" aria-labelledby="why-heading">
+            <div class="container">
+                <h2 id="why-heading">Why VoiceAgent for Service Businesses?</h2>
+                <p>VoiceAgent is an open-source voice AI platform designed specifically for SMB service businesses — dental clinics, salons, auto repair shops, law firms, and consulting practices. It automates inbound phone calls with AI receptionists that can answer FAQs, schedule appointments, capture leads, and escalate to humans when needed.</p>
+                <p>Unlike generic voice AI tools, VoiceAgent provides full call observability: every turn is traced with latency metrics, every provider call is costed, and every error is categorized. This makes debugging and optimizing your voice agents a systematic process rather than guesswork.</p>
+                <p>The platform follows an API-first design: everything you can do in a future dashboard UI is available through the REST API. Multi-tenant organizations with scoped API keys ensure data isolation between customers. Agent versioning with rollback means you can safely iterate on your agent configurations.</p>
+                <p>Built with FastAPI, PostgreSQL, and a provider adapter pattern, VoiceAgent is designed for high-load production use. The OSS Core is free and self-hostable. The Cloud edition adds hosted analytics, billing sync with Lemon Squeezy, and managed integrations.</p>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section class="stats">
-        <div class="container">
-            <div class="stats-grid">
-                <div class="stat"><h3>10,000+</h3><p>API calls/day capacity</p></div>
-                <div class="stat"><h3>99.9%</h3><p>Target uptime SLA</p></div>
-                <div class="stat"><h3>6</h3><p>Provider adapters</p></div>
-                <div class="stat"><h3>Open</h3><p>Source & API-first</p></div>
+        <section class="how-to" aria-labelledby="howto-heading">
+            <div class="container">
+                <h2 id="howto-heading">Get Started in 4 Steps</h2>
+                <div class="steps">
+                    <div class="step"><div class="step-num" aria-hidden="true">1</div><h3>Clone and Install</h3><p>Clone the repo and run pip install -e .[dev] to set up the development environment.</p></div>
+                    <div class="step"><div class="step-num" aria-hidden="true">2</div><h3>Start the Stack</h3><p>Run docker compose up --build to launch the API, worker, and PostgreSQL database.</p></div>
+                    <div class="step"><div class="step-num" aria-hidden="true">3</div><h3>Create an Agent</h3><p>Use the REST API to instantiate a template, configure business hours, and publish.</p></div>
+                    <div class="step"><div class="step-num" aria-hidden="true">4</div><h3>Go Live</h3><p>Connect your telephony provider, configure webhooks, and start handling calls.</p></div>
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section class="faq">
-        <div class="container">
-            <h2>Frequently Asked Questions</h2>
-            <details><summary>What is VoiceAgent?</summary><p>VoiceAgent is an open-source voice AI platform that helps service businesses automate inbound calls, appointment scheduling, and customer support with AI phone agents. It provides an API-first core with vertical templates, observability, and integration hooks.</p></details>
-            <details><summary>How does VoiceAgent handle call automation?</summary><p>VoiceAgent uses a provider adapter layer for STT, LLM, and TTS to process calls turn-by-turn. Each call is tracked with trace IDs, per-turn latency, and cost breakdowns for full observability.</p></details>
-            <details><summary>Is VoiceAgent open-source?</summary><p>Yes, VoiceAgent is open-source under the OSS Core model. The core API, runtime orchestrator, and worker are freely available. A hosted Cloud/Pro edition adds analytics, billing sync, and managed integrations.</p></details>
-            <details><summary>Can I integrate with my existing calendar and CRM?</summary><p>Yes. VoiceAgent has a provider adapter interface for calendar, CRM, telephony, and messaging integrations. You can connect Google Calendar, Calendly, HubSpot, and other services through the integrations API.</p></details>
-            <details><summary>How does VoiceAgent ensure call reliability?</summary><p>VoiceAgent provides idempotency protection for all critical operations, webhook delivery with retry-aware logic, agent versioning with rollback, and comprehensive error categorization.</p></details>
-        </div>
-    </section>
+        <section class="stats" aria-labelledby="stats-heading">
+            <div class="container">
+                <h2 id="stats-heading" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Platform Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat"><h3>10,000+</h3><p>API calls per day capacity</p></div>
+                    <div class="stat"><h3>99.9%</h3><p>Target uptime SLA</p></div>
+                    <div class="stat"><h3>6</h3><p>Provider adapters ready</p></div>
+                    <div class="stat"><h3>MIT</h3><p>Open-source license</p></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="faq" aria-labelledby="faq-heading">
+            <div class="container">
+                <h2 id="faq-heading">Frequently Asked Questions</h2>
+                <details><summary>What is VoiceAgent?</summary><p>VoiceAgent is an open-source voice AI platform that helps service businesses automate inbound calls, appointment scheduling, and customer support with AI phone agents. It provides an API-first core with vertical templates, observability, and integration hooks.</p></details>
+                <details><summary>How does VoiceAgent handle call automation?</summary><p>VoiceAgent uses a provider adapter layer for STT, LLM, and TTS to process calls turn-by-turn. Each call is tracked with trace IDs, per-turn latency, and cost breakdowns for full observability.</p></details>
+                <details><summary>Is VoiceAgent open-source?</summary><p>Yes, VoiceAgent is open-source under the MIT license. The core API, runtime orchestrator, and worker are freely available. A hosted Cloud edition adds analytics, billing sync, and managed integrations.</p></details>
+                <details><summary>Can I integrate with my existing calendar and CRM?</summary><p>Yes. VoiceAgent has a provider adapter interface for calendar, CRM, telephony, and messaging integrations. You can connect Google Calendar, Calendly, HubSpot, and other services through the integrations API.</p></details>
+                <details><summary>How does VoiceAgent ensure call reliability?</summary><p>VoiceAgent provides idempotency protection for all critical operations, webhook delivery with retry-aware logic, agent versioning with rollback, and comprehensive error categorization.</p></details>
+            </div>
+        </section>
+    </main>
 
     <footer>
         <div class="container">
-            <p>&copy; 2026 VoiceAgent. All rights reserved.</p>
-            <p><a href="#terms">Terms of Service</a> | <a href="#privacy">Privacy Policy</a> | <a href="https://github.com/homgorn/real-voice-agent-free" rel="noopener noreferrer">GitHub</a></p>
+            <p>Copyright 2026 VoiceAgent. All rights reserved.</p>
+            <p><a href="https://github.com/homgorn/real-voice-agent-free" rel="noopener noreferrer">GitHub</a> | <a href="#terms">Terms of Service</a> | <a href="#privacy">Privacy Policy</a></p>
         </div>
     </footer>
 </body>
