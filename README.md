@@ -1,166 +1,159 @@
-# VoiceAgent — Open-Source AI Phone Agent Platform for SMB Service Businesses
+# VoiceAgent — Open-Source AI Phone Agent for Call Automation, Appointment Scheduling, and AI Receptionists
 
 [![CI](https://github.com/voiceagent/voiceagent/actions/workflows/ci.yml/badge.svg)](https://github.com/voiceagent/voiceagent/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 
-VoiceAgent is an open-source voice AI platform that automates inbound calls, appointment scheduling, and customer support for service businesses. Built with FastAPI, PostgreSQL, and a provider adapter pattern for zero vendor lock-in.
+VoiceAgent is an open-source AI phone agent platform for SMB service businesses. It helps teams automate inbound calls, appointment scheduling, lead capture, FAQ handling, and operator follow-up through an API-first backend and a lightweight control plane.
 
-## What VoiceAgent Solves
+## What VoiceAgent Is
 
-- **Automates inbound calls** — AI receptionists handle FAQs, routing, and lead capture 24/7
-- **Appointment scheduling** — Calendar integration with conflict resolution and confirmations
-- **Customer support automation** — Knowledge base-powered responses with human escalation
-- **Full call observability** — Per-turn latency, per-provider cost, trace IDs for every call
-- **API-first integrations** — REST API for everything; webhooks for real-time events
-- **Operator control plane** — Dashboard overview, onboarding flows, test calls, bookings, and setup actions
+VoiceAgent is designed for companies that need an AI receptionist or AI voice agent without hard vendor lock-in.
 
-## Why VoiceAgent (Positioning)
+- Automates inbound call handling for clinics, salons, auto services, consultants, and local service businesses
+- Supports appointment booking workflows with availability lookup and booking conflict protection
+- Runs a voice runtime pipeline with `STT -> LLM -> TTS`
+- Exposes the full product through REST APIs, webhook events, and an operator control plane
+- Keeps provider boundaries explicit through adapter interfaces for STT, TTS, LLM, and calendar systems
 
-- **Vertical templates** for dental clinics, salons, auto repair, law firms, consultants
-- **Strong debugging** — Every call is traced with latency and cost breakdowns
-- **Human handoff** built into every flow — escalate when AI can't help
-- **Transparent economics** — Know exactly what each call costs in tokens and duration
-- **API-first** — UI never does more than the API can do
-- **Partner distribution** — White-label and agency-ready with sub-account management
+## Core Use Cases
+
+- **AI receptionist** for answering common questions and routing calls
+- **Appointment scheduling software** for service businesses that book over the phone
+- **Call automation platform** for inbound support and lead qualification
+- **Voice AI backend** for teams building custom telephony or CRM workflows
+- **Operator control plane** for reviewing calls, bookings, integrations, and launch blockers
+
+## Why It Matters
+
+- **Open-source voice agent stack** — backend logic is inspectable and extensible
+- **API-first architecture** — the UI sits on top of the same APIs exposed to integrators
+- **Scheduling logic** — availability lookup, slot suggestions, and double-booking prevention are built into the backend
+- **Observability** — every call turn stores latency, provider metadata, tool execution, and summaries
+- **Operational workflows** — the control plane handles publishing agents, simulating calls, reviewing transcripts, and managing bookings
+
+## Product Snapshot
+
+| Area | Current capability |
+|------|--------------------|
+| Agents | Draft, publish, rollback, template-based creation |
+| Calls | Create, respond, inspect transcript, complete, summarize |
+| Scheduling | Availability lookup, slot suggestions, booking conflict checks |
+| Integrations | Calendar integration records and health checks |
+| Security | Scoped API keys, idempotency, security headers, CORS, trusted hosts |
+| Platform | FastAPI, SQLAlchemy, Alembic, worker, metrics, CI/CD |
+| Frontend | Operator control plane for launch setup and daily operations |
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    VoiceAgent Platform                       │
-├───────────────────────┬─────────────────────────────────────┤
-│  Control Plane (API)  │  Execution Plane (Runtime)           │
-│  ├─ 14 Domain Routers │  ├─ CallRuntimeOrchestrator          │
-│  ├─ Security Middleware│  ├─ STT → LLM → TTS Pipeline       │
-│  ├─ Exception Handlers │  └─ Provider Adapters (pluggable)    │
-│  └─ Lifespan mgmt     │                                      │
-├───────────────────────┴─────────────────────────────────────┤
-│  PostgreSQL (prod) / SQLite (dev) │  Valkey (future: cache)  │
-│  18 tables · Alembic migrations   │  Webhook worker (async)  │
-└─────────────────────────────────────────────────────────────┘
+```text
+Cloudflare / Edge
+  -> Nginx / ingress
+  -> FastAPI API
+       -> routers
+       -> store.py business logic
+       -> runtime orchestrator
+       -> webhook worker
+  -> PostgreSQL or SQLite
+  -> Valkey / rate limit / cache layer
+  -> Provider adapters (STT, LLM, TTS, Calendar)
 ```
 
-## Core Features
+## Control Plane and Runtime
 
-| Feature | Description |
-|---------|-------------|
-| Multi-tenant orgs | Scoped API keys, data isolation per organization |
-| Agent versioning | Draft → Publish → Rollback with immutable snapshots |
-| Call lifecycle | Create → Turns → Respond → Complete → Summary |
-| Booking management | Calendar adapter interface (Google, Calendly, custom) |
-| Webhook delivery | HMAC-signed, retry with exponential backoff |
-| Event sourcing | All state changes emit events for audit and integrations |
-| Provider adapters | STT, TTS, LLM, Calendar — Protocol-based, zero lock-in |
-| Usage tracking | Per-call cost estimation (tokens + duration) |
-| Dashboard overview | Control plane summary with action items, upcoming bookings, and operator workflows |
-| Partner system | Referral tracking, sub-account management |
-| Idempotency | All critical POSTs protected (428 if missing key) |
+VoiceAgent now includes both the execution layer and the operator layer.
+
+- **Runtime** handles the call turn pipeline and provider adapters
+- **Scheduling core** calculates available slots from agent business hours and existing bookings
+- **Control plane** lets operators create agents, connect integrations, simulate calls, inspect call transcripts, and create bookings from suggested slots
 
 ## Quick Start
 
 ```bash
-# 1. Install
 pip install -e ".[dev]"
-
-# 2. Test
-pytest tests/ -v
-
-# 3. Run
+python -m pytest -q
 uvicorn voiceagent_api.app:app --app-dir apps/api/src --host 0.0.0.0 --port 8000 --reload
+```
 
-# 4. Worker (separate terminal)
+Worker:
+
+```bash
 PYTHONPATH=apps/api/src python -m voiceagent_api.worker
 ```
 
-### Docker
+Control plane:
 
 ```bash
-docker compose up --build -d
-# API: http://localhost:8000
-# Docs: http://localhost:8000/docs
+python -m http.server 4173 -d apps/web
 ```
 
-## API Resources
+- API docs: `http://localhost:8000/docs`
+- Control plane: `http://localhost:4173`
 
-| Resource | Endpoints | Auth Scopes |
-|----------|-----------|-------------|
-| Organizations | GET, PATCH `/v1/organizations/current` | `orgs:read`, `orgs:write` |
-| API Keys | GET, POST, DELETE `/v1/api-keys` | `api_keys:*` |
-| Agents | CRUD + publish + rollback `/v1/agents` | `agents:*` |
-| Calls | CRUD + turns + respond + complete | `calls:*` |
-| Bookings | CRUD `/v1/bookings` | `bookings:*` |
-| Webhooks | CRUD + test + retry + process | `webhooks:*` |
-| Events | GET `/v1/events` | `events:read` |
-| Usage | GET `/v1/usage`, `/v1/usage/costs` | `usage:read` |
+## Main Documentation
 
-> **Important:** All critical POST operations require `Idempotency-Key` header and return 428 if missing.
+- [docs/README.md](docs/README.md) — documentation index
+- [USAGE.md](USAGE.md) — end-to-end usage guide and curl examples
+- [docs/api-quickstart.md](docs/api-quickstart.md) — fast API onboarding
+- [docs/self-hosting.md](docs/self-hosting.md) — local and production deployment notes
+- [docs/openai-runtime.md](docs/openai-runtime.md) — OpenAI voice runtime setup
+- [docs/control-plane.md](docs/control-plane.md) — operator UI and workflows
+- [docs/scheduling-and-bookings.md](docs/scheduling-and-bookings.md) — availability and booking logic
+- [SECURITY.md](SECURITY.md) — security posture and policies
+- [ROADMAP.md](ROADMAP.md) — current roadmap and gaps
+- [CONTEXT_MAP.md](CONTEXT_MAP.md) — architecture, API map, and code layout
 
-## Provider Adapters
+## API Surface
 
-VoiceAgent uses a Protocol-based adapter pattern for all external providers:
+| Resource | Key endpoints |
+|----------|---------------|
+| Agents | `/v1/agents`, `/v1/agents/{id}/publish`, `/v1/agents/{id}/availability` |
+| Calls | `/v1/calls`, `/v1/calls/{id}/respond`, `/v1/calls/{id}/complete` |
+| Bookings | `/v1/bookings` |
+| Dashboard | `/v1/dashboard/overview` |
+| Integrations | `/v1/integrations/{provider}/connect`, `/v1/integrations/{provider}/test` |
+| Webhooks | `/v1/webhooks` |
 
-- **STT** (Speech-to-Text): Stub → OpenAI Whisper / Deepgram
-- **TTS** (Text-to-Speech): Stub → OpenAI / ElevenLabs
-- **LLM** (Language Model): Stub → OpenAI / Anthropic
-- **Calendar**: Stub → Google Calendar / Calendly
-- **Telephony**: Planned → Twilio / Vapi
-- **CRM**: Planned → HubSpot / Salesforce
+> All POST and PATCH mutations require `Idempotency-Key`.
 
-Add real providers by implementing the Protocol interface — no core changes needed.
+## Deployment Options
 
-Current runtime supports OpenAI-backed STT, LLM, and TTS when `VOICEAGENT_OPENAI_API_KEY` is configured; otherwise it falls back to stub providers for local development and tests.
+### Small self-hosted footprint
+- FastAPI app on a single VM
+- PostgreSQL or SQLite for development
+- Optional Valkey for rate limiting and idempotency support
+- Cloudflare in front for TLS, caching, and basic protection
 
-## Deployment
+### Larger production setup
+- Managed PostgreSQL
+- Kubernetes deployment or container hosting
+- Nginx or ingress rate limiting
+- OpenTelemetry + Prometheus + Grafana
+- External telephony and calendar providers
 
-### Budget $50/mo
-```
-API: Hetzner CPX21 (2 vCPU, 4GB) — $9.50
-DB: Neon Free (100 CU-hrs) — $0
-Cache: Upstash Valkey Free — $0
-CDN: Cloudflare Free — $0
-Total: ~$10/mo
-```
+## SEO / Search Intent Coverage
 
-### Budget $200/mo
-```
-API: Hetzner CCX22 (4 vCPU, 16GB) — $30
-DB: DigitalOcean Managed PG — $15
-Cache: DigitalOcean Managed Valkey — $15
-CDN: Cloudflare Pro — $20
-Monitoring: Grafana Cloud + Sentry — $26
-Total: ~$106/mo
-```
+This repository is relevant for searches around:
 
-### Production Stack
-```
-Cloudflare (CDN + WAF) → Nginx (rate limiting) → FastAPI (K8s pods)
-                                                    ↓
-                                          PostgreSQL (managed)
-                                          Valkey (cache + rate limit)
-                                          OpenTelemetry → Prometheus → Grafana
-```
+- open-source AI phone agent
+- AI receptionist for small business
+- voice AI appointment scheduling
+- inbound call automation platform
+- FastAPI voice bot backend
+- open-source call center automation
+- AI voice agent with calendar booking
+- operator control plane for voice AI
 
-## Documentation
+## What Is Still Missing
 
-| Document | Purpose |
-|----------|---------|
-| [AGENTS.md](AGENTS.md) | AI-IDE context for Claude Code, Cursor, Windsurf |
-| [CONTEXT_MAP.md](CONTEXT_MAP.md) | System architecture map, data flows, API map |
-| [ROADMAP.md](ROADMAP.md) | Development plan, tech debt tracker |
-| [SECURITY.md](SECURITY.md) | Security policy, OWASP Top 10:2025 compliance |
-| [USAGE.md](USAGE.md) | Full usage guide with curl examples |
-| [docs/architecture-v1.md](docs/architecture-v1.md) | Architecture decisions |
-| [contracts/api-surface-v1.md](contracts/api-surface-v1.md) | API contract |
-| [contracts/provider-adapter-interface-v1.md](contracts/provider-adapter-interface-v1.md) | Provider adapter contract |
+VoiceAgent is substantially more complete than an initial bootstrap, but it is not the final hosted product yet.
 
-## Keywords
-
-Voice AI, AI phone agent, call automation, appointment scheduling, customer support automation, open-source voice agent API, voice bot platform, SMB call handling, AI receptionist, voice API, call observability, multi-tenant voice platform
+- Telephony ingress is not finished end-to-end
+- Browser-safe hosted auth is not implemented yet
+- CRM adapters and richer provider integrations are still pending
+- Frontend is useful, but not yet a production SPA
 
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
-
-
