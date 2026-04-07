@@ -4,17 +4,18 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 ROOT = Path(__file__).resolve().parents[1]
 API_SRC = ROOT / "apps" / "api" / "src"
 if str(API_SRC) not in sys.path:
     sys.path.insert(0, str(API_SRC))
 
-from voiceagent_api.config import settings
-from voiceagent_api.db import Base
-import voiceagent_api.models  # noqa: F401
+import voiceagent_api.models  # noqa: F401, E402
+from voiceagent_api.config import settings  # noqa: E402
+from voiceagent_api.db import Base  # noqa: E402
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

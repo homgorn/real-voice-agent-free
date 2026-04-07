@@ -3,13 +3,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from voiceagent_api.auth import AuthContext, require_scope
+from voiceagent_api.routers._helpers import normalize_pagination
 from voiceagent_api.schemas import (
     ErrorResponse,
     EventListResponse,
     EventResponse,
 )
 from voiceagent_api.store import store
-from voiceagent_api.routers._helpers import normalize_pagination
 
 router = APIRouter()
 

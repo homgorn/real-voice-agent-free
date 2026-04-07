@@ -7,7 +7,7 @@ import uuid
 from fastapi import Request
 from fastapi.encoders import jsonable_encoder
 
-from voiceagent_api.errors import IdempotencyRequiredError, IdempotencyConflictError
+from voiceagent_api.errors import IdempotencyRequiredError
 
 
 def trace_id_from_request(request: Request) -> str:

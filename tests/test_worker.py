@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
-
 from voiceagent_api.app import app
 from voiceagent_api.db import SessionLocal
 from voiceagent_api.models import WebhookDeliveryModel

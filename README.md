@@ -14,6 +14,7 @@ VoiceAgent is an open-source voice AI platform that automates inbound calls, app
 - **Customer support automation** — Knowledge base-powered responses with human escalation
 - **Full call observability** — Per-turn latency, per-provider cost, trace IDs for every call
 - **API-first integrations** — REST API for everything; webhooks for real-time events
+- **Operator control plane** — Dashboard overview, onboarding flows, test calls, bookings, and setup actions
 
 ## Why VoiceAgent (Positioning)
 
@@ -53,6 +54,7 @@ VoiceAgent is an open-source voice AI platform that automates inbound calls, app
 | Event sourcing | All state changes emit events for audit and integrations |
 | Provider adapters | STT, TTS, LLM, Calendar — Protocol-based, zero lock-in |
 | Usage tracking | Per-call cost estimation (tokens + duration) |
+| Dashboard overview | Control plane summary with action items, upcoming bookings, and operator workflows |
 | Partner system | Referral tracking, sub-account management |
 | Idempotency | All critical POSTs protected (428 if missing key) |
 
@@ -108,6 +110,8 @@ VoiceAgent uses a Protocol-based adapter pattern for all external providers:
 
 Add real providers by implementing the Protocol interface — no core changes needed.
 
+Current runtime supports OpenAI-backed STT, LLM, and TTS when `VOICEAGENT_OPENAI_API_KEY` is configured; otherwise it falls back to stub providers for local development and tests.
+
 ## Deployment
 
 ### Budget $50/mo
@@ -158,3 +162,5 @@ Voice AI, AI phone agent, call automation, appointment scheduling, customer supp
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
+
+

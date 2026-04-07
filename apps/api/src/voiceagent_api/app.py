@@ -13,9 +13,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from voiceagent_api.config import settings
 from voiceagent_api.db import close_database, create_database, ping_database
 from voiceagent_api.errors import VoiceAgentError
-from voiceagent_api.schemas import ErrorResponse
 from voiceagent_api.middleware import RateLimitMiddleware
 from voiceagent_api.otel import close_opentelemetry, get_metrics_response, init_opentelemetry
+from voiceagent_api.schemas import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
@@ -104,20 +104,21 @@ def create_app() -> FastAPI:
 
     app.add_middleware(RateLimitMiddleware)
 
-    from voiceagent_api.routers.health import router as health_router
-    from voiceagent_api.routers.organizations import router as organizations_router
+    from voiceagent_api.routers.agents import router as agents_router
     from voiceagent_api.routers.api_keys import router as api_keys_router
     from voiceagent_api.routers.billing import router as billing_router
-    from voiceagent_api.routers.agents import router as agents_router
-    from voiceagent_api.routers.calls import router as calls_router
     from voiceagent_api.routers.bookings import router as bookings_router
-    from voiceagent_api.routers.phone_numbers import router as phone_numbers_router
+    from voiceagent_api.routers.calls import router as calls_router
+    from voiceagent_api.routers.dashboard import router as dashboard_router
+    from voiceagent_api.routers.events import router as events_router
+    from voiceagent_api.routers.health import router as health_router
     from voiceagent_api.routers.integrations import router as integrations_router
     from voiceagent_api.routers.knowledge_bases import router as knowledge_bases_router
+    from voiceagent_api.routers.organizations import router as organizations_router
     from voiceagent_api.routers.partners import router as partners_router
-    from voiceagent_api.routers.webhooks import router as webhooks_router
-    from voiceagent_api.routers.events import router as events_router
+    from voiceagent_api.routers.phone_numbers import router as phone_numbers_router
     from voiceagent_api.routers.usage import router as usage_router
+    from voiceagent_api.routers.webhooks import router as webhooks_router
 
     app.include_router(health_router)
     app.include_router(organizations_router)
@@ -125,6 +126,7 @@ def create_app() -> FastAPI:
     app.include_router(billing_router)
     app.include_router(agents_router)
     app.include_router(calls_router)
+    app.include_router(dashboard_router)
     app.include_router(bookings_router)
     app.include_router(phone_numbers_router)
     app.include_router(integrations_router)

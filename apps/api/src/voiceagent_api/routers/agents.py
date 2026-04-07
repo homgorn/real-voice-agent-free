@@ -1,9 +1,18 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, Query, Request
 
 from voiceagent_api.auth import AuthContext, require_scope
+from voiceagent_api.routers._helpers import (
+    idempotency_request_hash,
+    normalize_pagination,
+    require_idempotency_key,
+    trace_id_from_request,
+)
 from voiceagent_api.schemas import (
+    AgentAvailabilityResponse,
     AgentCreateRequest,
     AgentListResponse,
     AgentResponse,
@@ -21,12 +30,6 @@ from voiceagent_api.schemas import (
     utc_now,
 )
 from voiceagent_api.store import store
-from voiceagent_api.routers._helpers import (
-    trace_id_from_request,
-    require_idempotency_key,
-    idempotency_request_hash,
-    normalize_pagination,
-)
 
 router = APIRouter()
 
@@ -101,6 +104,34 @@ async def get_agent(
 ) -> AgentResponse:
     record = store.get_agent(agent_id, auth.organization_id)
     return AgentResponse.model_validate(record)
+
+
+@router.get(
+    "/v1/agents/{agent_id}/availability",
+    response_model=AgentAvailabilityResponse,
+    responses={
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
+)
+async def get_agent_availability(
+    agent_id: str,
+    start_at: datetime | None = Query(default=None),
+    days: int = Query(default=5, ge=1, le=14),
+    slot_minutes: int | None = Query(default=None, ge=15, le=180),
+    limit: int = Query(default=8, ge=1, le=24),
+    auth: AuthContext = Depends(require_scope("bookings:read")),
+) -> AgentAvailabilityResponse:
+    record = store.get_agent_availability(
+        agent_id,
+        auth.organization_id,
+        start_at=start_at,
+        days=days,
+        slot_minutes=slot_minutes,
+        limit=limit,
+    )
+    return AgentAvailabilityResponse.model_validate(record)
 
 
 @router.patch(

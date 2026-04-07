@@ -17,6 +17,7 @@ class RuntimeTurnRequest:
     input_text: str | None = None
     audio_ref: str | None = None
     voice_id: str | None = None
+    conversation_history: list[dict[str, str]] | None = None
 
 
 @dataclass(slots=True)
@@ -31,13 +32,13 @@ class RuntimeTurnResult:
 
 
 class CallRuntimeOrchestrator:
-    def __init__(self) -> None:
-        self.stt_adapter = get_stt_adapter()
-        self.llm_adapter = get_llm_adapter()
-        self.tts_adapter = get_tts_adapter()
-
     def respond(self, request: RuntimeTurnRequest) -> RuntimeTurnResult:
-        transcription = self.stt_adapter.transcribe(
+        stt_adapter = get_stt_adapter()
+        llm_adapter = get_llm_adapter()
+        tts_adapter = get_tts_adapter()
+        conversation_history = request.conversation_history or []
+
+        transcription = stt_adapter.transcribe(
             TranscriptionRequest(
                 call_id=request.call_id,
                 trace_id=request.trace_id,
@@ -45,16 +46,17 @@ class CallRuntimeOrchestrator:
                 audio_ref=request.audio_ref,
             )
         )
-        decision = self.llm_adapter.generate_turn(
+        decision = llm_adapter.generate_turn(
             TurnGenerateRequest(
                 call_id=request.call_id,
                 agent_id=request.agent_id,
                 turn_index=request.turn_index,
                 user_text=transcription.text,
                 trace_id=request.trace_id,
+                conversation_history=conversation_history,
             )
         )
-        synthesis = self.tts_adapter.synthesize(
+        synthesis = tts_adapter.synthesize(
             SynthesisRequest(
                 call_id=request.call_id,
                 trace_id=request.trace_id,
@@ -77,6 +79,7 @@ class CallRuntimeOrchestrator:
                 "tokens_in": decision.tokens_in,
                 "tokens_out": decision.tokens_out,
                 "tts_audio_ref": synthesis.audio_ref,
+                "history_messages": len(conversation_history),
             },
             tool_calls=decision.tool_calls,
             response_audio_ref=synthesis.audio_ref,

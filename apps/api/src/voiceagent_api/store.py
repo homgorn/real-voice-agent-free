@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import func, or_, select
 
 from voiceagent_api.adapters.calendar import CalendarBookingRequest, CalendarBookingUpdateRequest, get_calendar_adapter
-from voiceagent_api.auth import hash_api_key
+from voiceagent_api.auth import find_api_key_model, hash_api_key
 from voiceagent_api.config import settings
 from voiceagent_api.db import SessionLocal, _sync_create_database, _sync_drop_database, _sync_ping_database
-from voiceagent_api.errors import IdempotencyConflictError, NotFoundError
+from voiceagent_api.errors import BookingConflictError, IdempotencyConflictError, NotFoundError
 from voiceagent_api.lemonsqueezy import extract_event_metadata
 from voiceagent_api.models import (
     AgentModel,
@@ -22,16 +23,16 @@ from voiceagent_api.models import (
     CallSummaryModel,
     CallTurnModel,
     EventModel,
-    IntegrationModel,
     IdempotencyKeyModel,
+    IntegrationModel,
     KnowledgeBaseDocumentModel,
     KnowledgeBaseModel,
     LicenseModel,
     OrganizationModel,
     PartnerAccountModel,
     PartnerModel,
-    PlanModel,
     PhoneNumberModel,
+    PlanModel,
     SubscriptionModel,
     TemplateModel,
     WebhookDeliveryModel,
@@ -70,6 +71,72 @@ def _parse_optional_datetime(value):
         normalized = value.replace("Z", "+00:00")
         return datetime.fromisoformat(normalized)
     return None
+
+
+_WEEKDAY_KEYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _resolve_timezone(name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError:
+        return ZoneInfo("UTC")
+
+
+def _as_agent_utc(value: datetime, timezone_name: str) -> datetime:
+    timezone = _resolve_timezone(timezone_name)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone).astimezone(UTC)
+    return value.astimezone(UTC)
+
+
+def _business_hour_keys(weekday: int) -> tuple[str, ...]:
+    keys = [_WEEKDAY_KEYS[weekday], "daily"]
+    if weekday < 5:
+        keys.extend(("mon_fri", "weekdays"))
+    else:
+        keys.extend(("sat_sun", "weekend", "weekends"))
+    return tuple(dict.fromkeys(keys))
+
+
+def _parse_business_range(value: str) -> tuple[int, int, int, int] | None:
+    if "-" not in value:
+        return None
+    start_raw, end_raw = (item.strip() for item in value.split("-", 1))
+    try:
+        start_hour, start_minute = (int(part) for part in start_raw.split(":", 1))
+        end_hour, end_minute = (int(part) for part in end_raw.split(":", 1))
+    except ValueError:
+        return None
+    if not all(0 <= item < 60 for item in (start_minute, end_minute)):
+        return None
+    if not all(0 <= item < 24 for item in (start_hour, end_hour)):
+        return None
+    if (end_hour, end_minute) <= (start_hour, start_minute):
+        return None
+    return start_hour, start_minute, end_hour, end_minute
+
+
+def _ranges_overlap(start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime) -> bool:
+    return start_a < end_b and start_b < end_a
+
+
+def _slot_label(slot_start_local: datetime) -> str:
+    return slot_start_local.strftime("%Y-%m-%d %H:%M")
+
+
+def _serialize_availability_slot(slot: dict) -> dict:
+    return {
+        "start_at": _as_utc(slot["start_at"]).isoformat(),
+        "end_at": _as_utc(slot["end_at"]).isoformat(),
+        "local_label": slot["local_label"],
+    }
 
 
 def _serialize_agent(model: AgentModel) -> dict:
@@ -140,16 +207,18 @@ def _serialize_event(model: EventModel) -> dict:
     }
 
 
-def _serialize_webhook(model: WebhookSubscriptionModel) -> dict:
-    return {
+def _serialize_webhook(model: WebhookSubscriptionModel, *, include_secret: bool = False) -> dict:
+    payload = {
         "id": model.id,
         "target_url": model.target_url,
         "event_types": model.event_types,
-        "secret": model.secret,
         "is_active": model.is_active,
         "created_at": model.created_at,
         "updated_at": model.updated_at,
     }
+    if include_secret:
+        payload["secret"] = model.secret
+    return payload
 
 
 def _serialize_delivery(model: WebhookDeliveryModel) -> dict:
@@ -398,8 +467,11 @@ class AgentStore:
                 session.add(organization)
 
             for spec in settings.bootstrap_api_keys:
-                key_hash = hash_api_key(str(spec["key"]))
-                existing = session.scalar(select(ApiKeyModel).where(ApiKeyModel.key_hash == key_hash))
+                existing = find_api_key_model(
+                    session,
+                    str(spec["key"]),
+                    organization_id=settings.default_organization_id,
+                )
                 if existing is not None:
                     continue
                 session.add(
@@ -407,7 +479,7 @@ class AgentStore:
                         id=f"key_{uuid4().hex[:8]}",
                         organization_id=settings.default_organization_id,
                         name=str(spec["name"]),
-                        key_hash=key_hash,
+                        key_hash=hash_api_key(str(spec["key"])),
                         scopes=list(spec["scopes"]),
                         is_active=True,
                         created_at=now,
@@ -616,16 +688,14 @@ class AgentStore:
         with SessionLocal() as session:
             while True:
                 raw_key = f"va_{uuid4().hex}"
-                key_hash = hash_api_key(raw_key)
-                existing = session.scalar(select(ApiKeyModel).where(ApiKeyModel.key_hash == key_hash))
-                if existing is None:
+                if find_api_key_model(session, raw_key) is None:
                     break
 
             record = ApiKeyModel(
                 id=f"key_{uuid4().hex[:8]}",
                 organization_id=organization_id,
                 name=payload.name,
-                key_hash=key_hash,
+                key_hash=hash_api_key(raw_key),
                 scopes=list(payload.scopes),
                 is_active=True,
                 created_at=now,
@@ -963,6 +1033,226 @@ class AgentStore:
             agent = self._get_agent_or_404(session, agent_id=agent_id, organization_id=organization_id)
             return _serialize_agent(agent)
 
+    def _build_agent_availability_payload(
+        self,
+        session,
+        *,
+        agent: AgentModel,
+        organization_id: str,
+        generated_at: datetime,
+        start_at: datetime | None,
+        days: int,
+        slot_minutes: int | None,
+        limit: int,
+        exclude_booking_id: str | None = None,
+    ) -> dict:
+        effective_slot_minutes = slot_minutes or settings.booking_slot_minutes
+        effective_days = max(1, days)
+        effective_limit = max(1, limit)
+        timezone = _resolve_timezone(agent.timezone)
+        generated_at_utc = _as_utc(generated_at)
+        reference_utc = _as_utc(start_at or generated_at_utc)
+        reference_local = reference_utc.astimezone(timezone)
+        slot_delta = timedelta(minutes=effective_slot_minutes)
+        range_end_utc = reference_utc + timedelta(days=effective_days + 1)
+
+        bookings_query = (
+            select(BookingModel)
+            .where(
+                BookingModel.organization_id == organization_id,
+                BookingModel.agent_id == agent.id,
+                BookingModel.status.in_(("confirmed", "rescheduled")),
+                BookingModel.start_at >= reference_utc - slot_delta,
+                BookingModel.start_at <= range_end_utc,
+            )
+            .order_by(BookingModel.start_at.asc())
+        )
+        if exclude_booking_id:
+            bookings_query = bookings_query.where(BookingModel.id != exclude_booking_id)
+        bookings = list(session.scalars(bookings_query).all())
+        calendar_connected = bool(
+            session.scalar(
+                select(func.count())
+                .select_from(IntegrationModel)
+                .where(
+                    IntegrationModel.organization_id == organization_id,
+                    IntegrationModel.provider == "calendar",
+                    IntegrationModel.status == "connected",
+                )
+            )
+            or 0
+        )
+
+        slots: list[dict] = []
+        seen_slot_ids: set[str] = set()
+        business_hours = agent.business_hours or {}
+
+        for day_offset in range(effective_days):
+            day_local = (reference_local + timedelta(days=day_offset)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            for key in _business_hour_keys(day_local.weekday()):
+                for raw_range in business_hours.get(key, []):
+                    parsed = _parse_business_range(raw_range)
+                    if parsed is None:
+                        continue
+                    start_hour, start_minute, end_hour, end_minute = parsed
+                    slot_cursor = day_local.replace(hour=start_hour, minute=start_minute)
+                    range_end_local = day_local.replace(hour=end_hour, minute=end_minute)
+                    while slot_cursor + slot_delta <= range_end_local and len(slots) < effective_limit:
+                        slot_end_local = slot_cursor + slot_delta
+                        if slot_end_local <= reference_local:
+                            slot_cursor += slot_delta
+                            continue
+                        slot_id = slot_cursor.isoformat()
+                        if slot_id in seen_slot_ids:
+                            slot_cursor += slot_delta
+                            continue
+                        slot_start_utc = slot_cursor.astimezone(UTC)
+                        slot_end_utc = slot_end_local.astimezone(UTC)
+                        conflict_found = False
+                        for booking in bookings:
+                            booking_start_utc = _as_agent_utc(booking.start_at, agent.timezone)
+                            booking_end_utc = booking_start_utc + slot_delta
+                            if _ranges_overlap(slot_start_utc, slot_end_utc, booking_start_utc, booking_end_utc):
+                                conflict_found = True
+                                break
+                        if not conflict_found:
+                            seen_slot_ids.add(slot_id)
+                            slots.append(
+                                {
+                                    "start_at": slot_start_utc,
+                                    "end_at": slot_end_utc,
+                                    "local_label": _slot_label(slot_cursor),
+                                }
+                            )
+                        slot_cursor += slot_delta
+                    if len(slots) >= effective_limit:
+                        break
+                if len(slots) >= effective_limit:
+                    break
+            if len(slots) >= effective_limit:
+                break
+
+        return {
+            "agent_id": agent.id,
+            "timezone": agent.timezone,
+            "slot_minutes": effective_slot_minutes,
+            "calendar_connected": calendar_connected,
+            "source": "internal_schedule",
+            "generated_at": generated_at_utc,
+            "slots": slots,
+        }
+
+    def _ensure_booking_slot_available(
+        self,
+        session,
+        *,
+        agent: AgentModel,
+        organization_id: str,
+        start_at: datetime,
+        now: datetime,
+        exclude_booking_id: str | None = None,
+    ) -> None:
+        requested_start = _as_utc(start_at)
+        availability = self._build_agent_availability_payload(
+            session,
+            agent=agent,
+            organization_id=organization_id,
+            generated_at=now,
+            start_at=requested_start,
+            days=1,
+            slot_minutes=settings.booking_slot_minutes,
+            limit=48,
+            exclude_booking_id=exclude_booking_id,
+        )
+        if any(_as_utc(slot["start_at"]) == requested_start for slot in availability["slots"]):
+            return
+
+        slot_delta = timedelta(minutes=settings.booking_slot_minutes)
+        conflict = session.scalar(
+            select(func.count())
+            .select_from(BookingModel)
+            .where(
+                BookingModel.organization_id == organization_id,
+                BookingModel.agent_id == agent.id,
+                BookingModel.status.in_(("confirmed", "rescheduled")),
+                BookingModel.start_at >= requested_start - slot_delta,
+                BookingModel.start_at <= requested_start + slot_delta,
+                BookingModel.id != (exclude_booking_id or ""),
+            )
+        ) or 0
+        if conflict:
+            raise BookingConflictError("Requested booking slot conflicts with an existing booking")
+        raise BookingConflictError("Requested booking time is outside configured business hours")
+
+    def _execute_runtime_tool_calls(
+        self,
+        session,
+        *,
+        call: CallModel,
+        organization_id: str,
+        tool_calls: list[dict],
+        now: datetime,
+    ) -> tuple[list[dict], dict | None]:
+        if not tool_calls:
+            return [], None
+
+        agent = self._get_agent_or_404(session, agent_id=call.agent_id, organization_id=organization_id)
+        availability_payload: dict | None = None
+        executed_tool_calls: list[dict] = []
+
+        for tool_call in tool_calls:
+            if tool_call.get("tool_name") == "calendar.lookup_slots":
+                availability_payload = self._build_agent_availability_payload(
+                    session,
+                    agent=agent,
+                    organization_id=organization_id,
+                    generated_at=now,
+                    start_at=now,
+                    days=5,
+                    slot_minutes=settings.booking_slot_minutes,
+                    limit=3,
+                )
+                executed_tool_calls.append(
+                    {
+                        **tool_call,
+                        "status": "completed",
+                        "source": availability_payload["source"],
+                        "calendar_connected": availability_payload["calendar_connected"],
+                        "available_slots": [
+                            _serialize_availability_slot(slot) for slot in availability_payload["slots"]
+                        ],
+                    }
+                )
+                continue
+            executed_tool_calls.append(tool_call)
+
+        return executed_tool_calls, availability_payload
+
+    def get_agent_availability(
+        self,
+        agent_id: str,
+        organization_id: str,
+        *,
+        start_at: datetime | None,
+        days: int,
+        slot_minutes: int | None,
+        limit: int,
+    ) -> dict:
+        with SessionLocal() as session:
+            agent = self._get_agent_or_404(session, agent_id=agent_id, organization_id=organization_id)
+            return self._build_agent_availability_payload(
+                session,
+                agent=agent,
+                organization_id=organization_id,
+                generated_at=datetime.now(UTC),
+                start_at=start_at,
+                days=days,
+                slot_minutes=slot_minutes,
+                limit=limit,
+            )
+
     def update_agent(
         self,
         agent_id: str,
@@ -991,7 +1281,7 @@ class AgentStore:
 
     def list_versions(self, agent_id: str, organization_id: str) -> list[dict]:
         with SessionLocal() as session:
-            agent = self._get_agent_or_404(session, agent_id=agent_id, organization_id=organization_id)
+            self._get_agent_or_404(session, agent_id=agent_id, organization_id=organization_id)
             versions = session.scalars(
                 select(AgentVersionModel)
                 .where(AgentVersionModel.agent_id == agent_id)
@@ -1144,11 +1434,21 @@ class AgentStore:
         calendar_adapter = get_calendar_adapter()
         with SessionLocal() as session:
             booking = self._get_booking_or_404(session, booking_id=booking_id, organization_id=organization_id)
+            agent = self._get_agent_or_404(session, agent_id=booking.agent_id, organization_id=organization_id)
             contact_name = payload.contact_name or booking.contact_name
             contact_phone = payload.contact_phone or booking.contact_phone
             service = payload.service or booking.service
             start_at = payload.start_at or booking.start_at
             status = payload.status or booking.status
+            if status != "cancelled":
+                self._ensure_booking_slot_available(
+                    session,
+                    agent=agent,
+                    organization_id=organization_id,
+                    start_at=start_at,
+                    now=now,
+                    exclude_booking_id=booking.id,
+                )
             calendar_result = calendar_adapter.update_booking(
                 CalendarBookingUpdateRequest(
                     agent_id=booking.agent_id,
@@ -1247,7 +1547,7 @@ class AgentStore:
             session.add(hook)
             session.commit()
             session.refresh(hook)
-            return _serialize_webhook(hook)
+            return _serialize_webhook(hook, include_secret=True)
 
     def delete_webhook(
         self,
@@ -1443,6 +1743,19 @@ class AgentStore:
             existing_count = session.scalar(
                 select(func.count()).select_from(CallTurnModel).where(CallTurnModel.call_id == call_id)
             )
+            recent_turns = list(
+                session.scalars(
+                    select(CallTurnModel)
+                    .where(CallTurnModel.call_id == call_id)
+                    .order_by(CallTurnModel.turn_index.desc())
+                    .limit(6)
+                )
+            )
+            recent_turns.reverse()
+            conversation_history: list[dict[str, str]] = []
+            for previous_turn in recent_turns:
+                conversation_history.append({"role": "user", "text": previous_turn.user_text})
+                conversation_history.append({"role": "assistant", "text": previous_turn.assistant_text})
             runtime_turn = runtime_orchestrator.respond(
                 RuntimeTurnRequest(
                     call_id=call_id,
@@ -1452,17 +1765,32 @@ class AgentStore:
                     input_text=payload.input_text,
                     audio_ref=payload.audio_ref,
                     voice_id=payload.voice_id,
+                    conversation_history=conversation_history,
                 )
             )
+            executed_tool_calls, availability_payload = self._execute_runtime_tool_calls(
+                session,
+                call=call,
+                organization_id=organization_id,
+                tool_calls=runtime_turn.tool_calls,
+                now=now,
+            )
+            assistant_text = runtime_turn.assistant_text
+            if availability_payload and availability_payload["slots"]:
+                slots_text = ", ".join(slot["local_label"] for slot in availability_payload["slots"][:3])
+                assistant_text = f"{assistant_text} Ближайшие окна: {slots_text}."
+            elif availability_payload:
+                assistant_text = f"{assistant_text} Пока свободных окон на ближайшие дни нет."
+
             turn = CallTurnModel(
                 id=f"turn_{uuid4().hex[:8]}",
                 call_id=call_id,
                 turn_index=int(existing_count or 0),
                 user_text=runtime_turn.user_text,
-                assistant_text=runtime_turn.assistant_text,
+                assistant_text=assistant_text,
                 latency_ms=runtime_turn.latency_ms,
                 provider_breakdown=runtime_turn.provider_breakdown,
-                tool_calls=runtime_turn.tool_calls,
+                tool_calls=executed_tool_calls,
                 response_audio_ref=runtime_turn.response_audio_ref,
                 finish_reason=runtime_turn.finish_reason,
                 created_at=now,
@@ -1750,30 +2078,37 @@ class AgentStore:
         now: datetime,
     ) -> dict:
         calendar_adapter = get_calendar_adapter()
-        calendar_result = calendar_adapter.create_booking(
-            CalendarBookingRequest(
+        with SessionLocal() as session:
+            agent = self._get_agent_or_404(session, agent_id=payload.agent_id, organization_id=organization_id)
+            self._ensure_booking_slot_available(
+                session,
+                agent=agent,
+                organization_id=organization_id,
+                start_at=payload.start_at,
+                now=now,
+            )
+            calendar_result = calendar_adapter.create_booking(
+                CalendarBookingRequest(
+                    agent_id=payload.agent_id,
+                    contact_name=payload.contact_name,
+                    contact_phone=payload.contact_phone,
+                    service=payload.service,
+                    start_at=payload.start_at,
+                )
+            )
+            booking = BookingModel(
+                id=f"bk_{uuid4().hex[:8]}",
+                organization_id=organization_id,
                 agent_id=payload.agent_id,
                 contact_name=payload.contact_name,
                 contact_phone=payload.contact_phone,
                 service=payload.service,
                 start_at=payload.start_at,
+                status=calendar_result.status,
+                external_booking_id=calendar_result.external_booking_id,
+                created_at=now,
+                updated_at=now,
             )
-        )
-        booking = BookingModel(
-            id=f"bk_{uuid4().hex[:8]}",
-            organization_id=organization_id,
-            agent_id=payload.agent_id,
-            contact_name=payload.contact_name,
-            contact_phone=payload.contact_phone,
-            service=payload.service,
-            start_at=payload.start_at,
-            status=calendar_result.status,
-            external_booking_id=calendar_result.external_booking_id,
-            created_at=now,
-            updated_at=now,
-        )
-        with SessionLocal() as session:
-            self._get_agent_or_404(session, agent_id=payload.agent_id, organization_id=organization_id)
             session.add(booking)
             self._emit_event(
                 session,
@@ -1997,6 +2332,151 @@ class AgentStore:
             session.commit()
             session.refresh(document)
             return _serialize_knowledge_document(document)
+
+    def get_dashboard_overview(self, organization_id: str) -> dict:
+        with SessionLocal() as session:
+            organization = session.scalar(
+                select(OrganizationModel).where(OrganizationModel.id == organization_id)
+            )
+            if organization is None:
+                raise NotFoundError("Organization not found")
+            agents = session.scalars(select(AgentModel).where(AgentModel.organization_id == organization_id)).all()
+            calls = session.scalars(
+                select(CallModel)
+                .where(CallModel.organization_id == organization_id)
+                .order_by(CallModel.created_at.desc())
+            ).all()
+            bookings = session.scalars(
+                select(BookingModel)
+                .where(BookingModel.organization_id == organization_id)
+                .order_by(BookingModel.start_at.asc())
+            ).all()
+            integrations = session.scalars(
+                select(IntegrationModel)
+                .where(IntegrationModel.organization_id == organization_id)
+                .order_by(IntegrationModel.provider.asc())
+            ).all()
+            phone_numbers = session.scalars(
+                select(PhoneNumberModel)
+                .where(PhoneNumberModel.organization_id == organization_id)
+                .order_by(PhoneNumberModel.created_at.asc())
+            ).all()
+
+            draft_agents = sum(1 for agent in agents if agent.status == "draft")
+            published_agents = sum(1 for agent in agents if agent.status == "published")
+            active_phone_numbers = sum(1 for number in phone_numbers if number.status == "active")
+            connected_integrations = sum(1 for integration in integrations if integration.status == "connected")
+            total_calls = len(calls)
+            active_calls = sum(1 for call in calls if call.status == "active")
+            completed_calls = sum(1 for call in calls if call.status == "completed")
+            failed_calls = sum(1 for call in calls if call.status == "failed")
+            escalated_calls = sum(1 for call in calls if call.status == "escalated")
+            total_bookings = len(bookings)
+            confirmed_bookings = sum(1 for booking in bookings if booking.status == "confirmed")
+            rescheduled_bookings = sum(1 for booking in bookings if booking.status == "rescheduled")
+            cancelled_bookings = sum(1 for booking in bookings if booking.status == "cancelled")
+
+            action_items: list[dict[str, str]] = []
+            if published_agents == 0:
+                action_items.append(
+                    {
+                        "type": "agent",
+                        "priority": "high",
+                        "title": "Publish your first agent",
+                        "description": "Draft agents do not answer production calls until one version is published.",
+                        "href": "/agents",
+                    }
+                )
+            if active_phone_numbers == 0:
+                action_items.append(
+                    {
+                        "type": "phone_number",
+                        "priority": "high",
+                        "title": "Attach a phone number",
+                        "description": "Inbound call automation needs at least one active phone number mapping.",
+                        "href": "/phone-numbers",
+                    }
+                )
+            if connected_integrations == 0:
+                action_items.append(
+                    {
+                        "type": "integration",
+                        "priority": "medium",
+                        "title": "Connect a calendar integration",
+                        "description": (
+                            "Bookings are more reliable when slots and confirmations sync "
+                            "with a real calendar."
+                        ),
+                        "href": "/integrations",
+                    }
+                )
+            if failed_calls or escalated_calls:
+                issue_count = failed_calls + escalated_calls
+                action_items.append(
+                    {
+                        "type": "call_quality",
+                        "priority": "medium",
+                        "title": "Review recent failed or escalated calls",
+                        "description": f"{issue_count} recent calls need script, routing, or escalation review.",
+                        "href": "/calls",
+                    }
+                )
+            if total_calls == 0:
+                action_items.append(
+                    {
+                        "type": "launch",
+                        "priority": "low",
+                        "title": "Run a first end-to-end test call",
+                        "description": (
+                            "Use the calls API or frontend dashboard to validate "
+                            "the current runtime before launch."
+                        ),
+                        "href": "/calls",
+                    }
+                )
+            if not action_items:
+                action_items.append(
+                    {
+                        "type": "optimization",
+                        "priority": "low",
+                        "title": "System is ready for optimization",
+                        "description": "Review prompts, booking outcomes, and call durations to improve conversion.",
+                        "href": "/usage",
+                    }
+                )
+
+            now = datetime.now(UTC)
+            upcoming_bookings = []
+            for booking in bookings:
+                booking_start = booking.start_at
+                if booking_start.tzinfo is None:
+                    booking_start = booking_start.replace(tzinfo=UTC)
+                if booking_start >= now and booking.status in {"confirmed", "rescheduled"}:
+                    upcoming_bookings.append(_serialize_booking(booking))
+            upcoming_bookings = upcoming_bookings[:5]
+            recent_calls = [_serialize_call(call) for call in calls[:5]]
+
+            return {
+                "organization": _serialize_organization(organization),
+                "snapshot": {
+                    "draft_agents": draft_agents,
+                    "published_agents": published_agents,
+                    "active_phone_numbers": active_phone_numbers,
+                    "connected_integrations": connected_integrations,
+                    "total_calls": total_calls,
+                    "active_calls": active_calls,
+                    "completed_calls": completed_calls,
+                    "failed_calls": failed_calls,
+                    "escalated_calls": escalated_calls,
+                    "total_bookings": total_bookings,
+                    "confirmed_bookings": confirmed_bookings,
+                    "rescheduled_bookings": rescheduled_bookings,
+                    "cancelled_bookings": cancelled_bookings,
+                },
+                "action_items": action_items,
+                "recent_calls": recent_calls,
+                "upcoming_bookings": upcoming_bookings,
+            }
 
     def get_usage_summary(self, organization_id: str) -> dict:
         with SessionLocal() as session:
@@ -2364,3 +2844,4 @@ class AgentStore:
 
 
 store = AgentStore()
+

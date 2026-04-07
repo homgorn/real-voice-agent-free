@@ -1,20 +1,18 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-from fastapi.testclient import TestClient
 import hashlib
 import hmac
-import importlib
 import json
+from datetime import UTC, datetime, timedelta
 
+from fastapi.testclient import TestClient
 from voiceagent_api.app import app
-from voiceagent_api.auth import hash_api_key
+from voiceagent_api.auth import hash_api_key, legacy_hash_api_key
 from voiceagent_api.config import settings
 from voiceagent_api.db import SessionLocal
 from voiceagent_api.models import ApiKeyModel, OrganizationModel, WebhookDeliveryModel
 from voiceagent_api.store import store
 from voiceagent_api.webhooks import DeliveryResult, WebhookDispatcher
-
 
 WRITE_HEADERS = {"Authorization": "Bearer dev-secret-key"}
 READ_HEADERS = {"Authorization": "Bearer read-only-key"}
@@ -53,6 +51,37 @@ def test_current_organization_and_api_keys() -> None:
     api_keys = client.get("/v1/api-keys", headers=WRITE_HEADERS)
     assert api_keys.status_code == 200
     assert api_keys.json()["total"] >= 2
+
+
+def test_legacy_api_key_hash_is_accepted_and_upgraded() -> None:
+    created_at = datetime.now(UTC)
+    with SessionLocal() as session:
+        session.add(
+            ApiKeyModel(
+                id="key_legacy01",
+                organization_id="org_default",
+                name="legacy-key",
+                key_hash=legacy_hash_api_key("legacy-secret-key"),
+                scopes=["orgs:read"],
+                is_active=True,
+                created_at=created_at,
+                last_used_at=None,
+            )
+        )
+        session.commit()
+
+    client = TestClient(app)
+    response = client.get(
+        "/v1/organizations/current",
+        headers={"Authorization": "Bearer legacy-secret-key"},
+    )
+    assert response.status_code == 200
+
+    with SessionLocal() as session:
+        key_model = session.get(ApiKeyModel, "key_legacy01")
+        assert key_model is not None
+        assert key_model.key_hash != legacy_hash_api_key("legacy-secret-key")
+        assert key_model.key_hash.startswith("$2")
 
 
 def test_plans_list() -> None:
@@ -278,6 +307,68 @@ def test_create_booking_emits_booking_event() -> None:
     assert any(item["event_type"] == "booking.created" for item in events.json()["items"])
 
 
+def test_agent_availability_excludes_booked_slots_and_blocks_double_booking() -> None:
+    client = TestClient(app)
+    agent_payload = {
+        "name": "Scheduler",
+        "template_id": "tpl_receptionist_booking_v1",
+        "timezone": "Asia/Almaty",
+        "default_language": "ru",
+        "business_hours": {"mon_fri": ["09:00-11:00"]},
+    }
+    created_agent = client.post(
+        "/v1/agents",
+        json=agent_payload,
+        headers=with_idempotency(WRITE_HEADERS, "idem-agent-availability-1"),
+    )
+    agent_id = created_agent.json()["id"]
+
+    created_booking = client.post(
+        "/v1/bookings",
+        json={
+            "agent_id": agent_id,
+            "contact_name": "Алина",
+            "contact_phone": "+77011234567",
+            "service": "consultation",
+            "start_at": "2026-03-10T09:30:00+05:00",
+        },
+        headers=with_idempotency(WRITE_HEADERS, "idem-booking-availability-1"),
+    )
+    assert created_booking.status_code == 200, created_booking.text
+
+    availability = client.get(
+        f"/v1/agents/{agent_id}/availability",
+        params={
+            "start_at": "2026-03-10T08:00:00+05:00",
+            "days": 1,
+            "slot_minutes": 30,
+            "limit": 6,
+        },
+        headers=WRITE_HEADERS,
+    )
+    assert availability.status_code == 200, availability.text
+    body = availability.json()
+    assert body["source"] == "internal_schedule"
+    assert body["calendar_connected"] is False
+    labels = [slot["local_label"] for slot in body["slots"]]
+    assert "2026-03-10 09:00" in labels
+    assert "2026-03-10 09:30" not in labels
+
+    conflicting = client.post(
+        "/v1/bookings",
+        json={
+            "agent_id": agent_id,
+            "contact_name": "Бек",
+            "contact_phone": "+77019876543",
+            "service": "consultation",
+            "start_at": "2026-03-10T09:30:00+05:00",
+        },
+        headers=with_idempotency(WRITE_HEADERS, "idem-booking-availability-2"),
+    )
+    assert conflicting.status_code == 409
+    assert conflicting.json()["error"]["code"] == "booking_conflict"
+
+
 def test_call_lifecycle_emits_events() -> None:
     client = TestClient(app)
     agent_payload = {
@@ -421,6 +512,7 @@ def test_webhook_creation_and_test_delivery(monkeypatch) -> None:
     list_hooks = client.get("/v1/webhooks", headers=WRITE_HEADERS)
     assert list_hooks.status_code == 200
     assert list_hooks.json()["total"] == 1
+    assert "secret" not in list_hooks.json()["items"][0]
 
     test_delivery = client.post(
         f"/v1/webhooks/{hook_body['id']}/test", headers=with_idempotency(WRITE_HEADERS, "idem-webhook-test-1")
@@ -770,6 +862,118 @@ def test_usage_endpoints() -> None:
     costs = client.get("/v1/usage/costs", headers=WRITE_HEADERS)
     assert costs.status_code == 200
     assert costs.json()["currency"] == "USD"
+
+
+def test_dashboard_overview_returns_control_plane_summary() -> None:
+    client = TestClient(app)
+    draft_agent = client.post(
+        "/v1/agents",
+        json={
+            "name": "Draft Desk",
+            "template_id": "tpl_receptionist_booking_v1",
+            "timezone": "Asia/Almaty",
+            "default_language": "ru",
+            "business_hours": {"mon_fri": ["09:00-18:00"]},
+        },
+        headers=with_idempotency(WRITE_HEADERS, "idem-dashboard-agent-draft"),
+    )
+    assert draft_agent.status_code == 200
+
+    published_agent = client.post(
+        "/v1/agents",
+        json={
+            "name": "Published Desk",
+            "template_id": "tpl_receptionist_booking_v1",
+            "timezone": "Asia/Almaty",
+            "default_language": "ru",
+            "business_hours": {"mon_fri": ["09:00-18:00"]},
+        },
+        headers=with_idempotency(WRITE_HEADERS, "idem-dashboard-agent-published"),
+    )
+    assert published_agent.status_code == 200
+    published_agent_id = published_agent.json()["id"]
+
+    publish = client.post(
+        f"/v1/agents/{published_agent_id}/publish",
+        json={"target_environment": "production"},
+        headers=with_idempotency(WRITE_HEADERS, "idem-dashboard-publish"),
+    )
+    assert publish.status_code == 200
+
+    phone_number = client.post(
+        "/v1/phone-numbers",
+        json={
+            "provider": "stub",
+            "number": "+15551234567",
+            "label": "Main Line",
+            "status": "active",
+            "capabilities": {"voice": True},
+        },
+        headers=with_idempotency(WRITE_HEADERS, "idem-dashboard-number"),
+    )
+    assert phone_number.status_code == 200
+
+    integration = client.post(
+        "/v1/integrations/calendar/connect",
+        json={"config": {"calendar_id": "cal_dashboard"}},
+        headers=with_idempotency(WRITE_HEADERS, "idem-dashboard-integration"),
+    )
+    assert integration.status_code == 200
+
+    booking = client.post(
+        "/v1/bookings",
+        json={
+            "agent_id": published_agent_id,
+            "contact_name": "Алина",
+            "contact_phone": "+77011234567",
+            "service": "consultation",
+            "start_at": "2030-04-10T15:00:00+05:00",
+        },
+        headers=with_idempotency(WRITE_HEADERS, "idem-dashboard-booking"),
+    )
+    assert booking.status_code == 200
+
+    created_call = client.post(
+        "/v1/calls",
+        json={
+            "agent_id": published_agent_id,
+            "direction": "inbound",
+            "from_number": "+15550001111",
+            "to_number": "+15550002222",
+        },
+        headers=with_idempotency(WRITE_HEADERS, "idem-dashboard-call"),
+    )
+    assert created_call.status_code == 200
+    call_id = created_call.json()["id"]
+
+    completed = client.post(
+        f"/v1/calls/{call_id}/complete",
+        json={
+            "outcome": "booking_created",
+            "duration_ms": 120000,
+            "recording_available": True,
+            "summary_text": "Клиент записан",
+        },
+        headers=with_idempotency(WRITE_HEADERS, "idem-dashboard-call-complete"),
+    )
+    assert completed.status_code == 200
+
+    response = client.get("/v1/dashboard/overview", headers=WRITE_HEADERS)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["organization"]["id"] == "org_default"
+    assert body["snapshot"]["draft_agents"] == 1
+    assert body["snapshot"]["published_agents"] == 1
+    assert body["snapshot"]["active_phone_numbers"] == 1
+    assert body["snapshot"]["connected_integrations"] == 1
+    assert body["snapshot"]["total_calls"] == 1
+    assert body["snapshot"]["completed_calls"] == 1
+    assert body["snapshot"]["total_bookings"] == 1
+    assert len(body["recent_calls"]) == 1
+    assert len(body["upcoming_bookings"]) == 1
+    assert body["recent_calls"][0]["id"] == call_id
+    assert body["upcoming_bookings"][0]["contact_name"] == "Алина"
+    assert body["action_items"][0]["type"] == "optimization"
 
 
 def test_partner_endpoints() -> None:

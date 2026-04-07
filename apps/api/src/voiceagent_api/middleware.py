@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import time
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -40,7 +39,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 content={
                     "error": {
                         "code": "rate_limit_exceeded",
-                        "message": f"Rate limit exceeded. Try again in 60 seconds.",
+                        "message": "Rate limit exceeded. Try again in 60 seconds.",
                         "category": "rate_limit",
                     }
                 },

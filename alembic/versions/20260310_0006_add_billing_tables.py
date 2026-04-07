@@ -7,8 +7,9 @@ Create Date: 2026-03-10 11:20:00
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20260310_0006"
@@ -88,8 +89,18 @@ def upgrade() -> None:
         sa.Column("received_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_billing_webhook_events_event_name"), "billing_webhook_events", ["event_name"], unique=False)
-    op.create_index(op.f("ix_billing_webhook_events_organization_id"), "billing_webhook_events", ["organization_id"], unique=False)
+    op.create_index(
+        op.f("ix_billing_webhook_events_event_name"),
+        "billing_webhook_events",
+        ["event_name"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_billing_webhook_events_organization_id"),
+        "billing_webhook_events",
+        ["organization_id"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:

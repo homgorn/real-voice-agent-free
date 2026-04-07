@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from voiceagent_api.schemas import HealthResponse, ReadyResponse
 from voiceagent_api.config import settings
+from voiceagent_api.schemas import HealthResponse, ReadyResponse
 from voiceagent_api.store import store
 
 router = APIRouter()

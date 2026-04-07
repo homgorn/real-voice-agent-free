@@ -85,3 +85,13 @@ class IdempotencyRequiredError(VoiceAgentError):
             category="validation",
             status_code=428,
         )
+
+
+class BookingConflictError(VoiceAgentError):
+    def __init__(self, message: str = "Requested booking slot is no longer available") -> None:
+        super().__init__(
+            code="booking_conflict",
+            message=message,
+            category="validation",
+            status_code=409,
+        )

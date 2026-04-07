@@ -3,9 +3,9 @@ from __future__ import annotations
 import argparse
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable
 
 from voiceagent_api.config import settings
 from voiceagent_api.schemas import utc_now

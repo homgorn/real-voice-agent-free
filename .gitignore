@@ -22,6 +22,7 @@ coverage/
 *.db
 *.sqlite3
 
+runtime_audio/
 # IDE / OS
 .idea/
 .vscode/
@@ -38,3 +39,6 @@ migration-check-*.db
 migration-debug.db
 voiceagent_migrations.db
 worker-cli-*.db
+
+.pytest-work/
+

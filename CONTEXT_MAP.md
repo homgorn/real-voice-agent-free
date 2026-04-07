@@ -73,6 +73,7 @@ POST /v1/agents/{id}/publish → store.publish_agent()
 | webhooks | /v1/webhooks | GET, POST, DELETE, test, retry, process | webhooks:read, webhooks:write | POST, retry, test |
 | events | /v1/events | GET | events:read | No |
 | usage | /v1/usage | GET | usage:read | No |
+| dashboard | /v1/dashboard/overview | GET | usage:read | No |
 
 ## Database Tables (18)
 agents, agent_versions, organizations, api_keys, plans, subscriptions,
@@ -98,7 +99,7 @@ apps/api/src/voiceagent_api/
 ├── models.py           # SQLAlchemy ORM models (18 tables)
 ├── schemas.py          # Pydantic request/response schemas (60+ models)
 ├── store.py            # Service layer (all business logic, ~2200 lines)
-├── auth.py             # API key authentication with SHA-256, scope enforcement
+├── auth.py             # API key authentication with bcrypt + legacy hash migration, scope enforcement
 ├── errors.py           # Custom exception hierarchy (VoiceAgentError base)
 ├── worker.py           # Background webhook delivery worker
 ├── runtime.py          # Call runtime orchestrator (STT → LLM → TTS pipeline)
@@ -112,4 +113,12 @@ apps/api/src/voiceagent_api/
 │   ├── webhooks.py, events.py, usage.py
 └── adapters/           # Provider adapters (Protocol + stub implementations)
     ├── stt.py, tts.py, llm.py, calendar.py
+
+apps/web/
+├── index.html         # Operator control plane shell with tabs and forms
+├── app.js             # Frontend state, workflows, and event handling
+├── api.js             # Browser API client for VoiceAgent endpoints
+├── render.js          # UI renderers for overview, calls, bookings, setup
+├── styles.css         # Control plane styling
+└── README.md          # Local run instructions
 ```

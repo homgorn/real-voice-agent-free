@@ -43,7 +43,7 @@ class OrganizationUpdateRequest(BaseModel):
     slug: str | None = Field(default=None, min_length=2, max_length=120)
 
     @model_validator(mode="after")
-    def validate_payload(self) -> "OrganizationUpdateRequest":
+    def validate_payload(self) -> OrganizationUpdateRequest:
         if not self.name and not self.slug:
             raise ValueError("at least one field must be provided")
         return self
@@ -210,7 +210,7 @@ class AgentUpdateRequest(BaseModel):
     business_hours: dict[str, list[str]] | None = None
 
     @model_validator(mode="after")
-    def validate_payload(self) -> "AgentUpdateRequest":
+    def validate_payload(self) -> AgentUpdateRequest:
         if (
             self.name is None
             and self.template_id is None
@@ -275,6 +275,22 @@ class AgentVersionListResponse(BaseModel):
     total: int
 
 
+class AvailabilitySlotResponse(BaseModel):
+    start_at: datetime
+    end_at: datetime
+    local_label: str
+
+
+class AgentAvailabilityResponse(BaseModel):
+    agent_id: str
+    timezone: str
+    slot_minutes: int
+    calendar_connected: bool
+    source: Literal["internal_schedule"]
+    generated_at: datetime
+    slots: list[AvailabilitySlotResponse]
+
+
 class BookingCreateRequest(BaseModel):
     agent_id: str = Field(min_length=3, max_length=32)
     contact_name: str = Field(min_length=2, max_length=120)
@@ -291,7 +307,7 @@ class BookingUpdateRequest(BaseModel):
     status: Literal["confirmed", "cancelled", "rescheduled"] | None = None
 
     @model_validator(mode="after")
-    def validate_payload(self) -> "BookingUpdateRequest":
+    def validate_payload(self) -> BookingUpdateRequest:
         if (
             self.contact_name is None
             and self.contact_phone is None
@@ -335,7 +351,7 @@ class PhoneNumberUpdateRequest(BaseModel):
     capabilities: dict | None = None
 
     @model_validator(mode="after")
-    def validate_payload(self) -> "PhoneNumberUpdateRequest":
+    def validate_payload(self) -> PhoneNumberUpdateRequest:
         if self.label is None and self.status is None and self.capabilities is None:
             raise ValueError("at least one field must be provided")
         return self
@@ -446,10 +462,13 @@ class WebhookResponse(BaseModel):
     id: str
     target_url: str
     event_types: list[str]
-    secret: str
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class WebhookCreateResponse(WebhookResponse):
+    secret: str
 
 
 class WebhookListResponse(BaseModel):
@@ -539,7 +558,7 @@ class CallRespondRequest(BaseModel):
     voice_id: str | None = Field(default=None, min_length=2, max_length=64)
 
     @model_validator(mode="after")
-    def validate_runtime_input(self) -> "CallRespondRequest":
+    def validate_runtime_input(self) -> CallRespondRequest:
         if not self.input_text and not self.audio_ref:
             raise ValueError("either input_text or audio_ref is required")
         return self
@@ -600,6 +619,38 @@ class UsageSummaryResponse(BaseModel):
     active_calls: int
     total_duration_ms: int
     average_duration_ms: int
+
+
+class DashboardActionItemResponse(BaseModel):
+    type: str
+    priority: Literal["high", "medium", "low"]
+    title: str
+    description: str
+    href: str
+
+
+class DashboardSnapshotResponse(BaseModel):
+    draft_agents: int
+    published_agents: int
+    active_phone_numbers: int
+    connected_integrations: int
+    total_calls: int
+    active_calls: int
+    completed_calls: int
+    failed_calls: int
+    escalated_calls: int
+    total_bookings: int
+    confirmed_bookings: int
+    rescheduled_bookings: int
+    cancelled_bookings: int
+
+
+class DashboardOverviewResponse(BaseModel):
+    organization: OrganizationResponse
+    snapshot: DashboardSnapshotResponse
+    action_items: list[DashboardActionItemResponse]
+    recent_calls: list[CallResponse]
+    upcoming_bookings: list[BookingResponse]
 
 
 class UsageCostResponse(BaseModel):

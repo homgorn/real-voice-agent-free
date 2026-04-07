@@ -56,6 +56,8 @@
 ## 🔄 In Progress
 - [ ] Store.py refactoring into domain services
 - [ ] Replace _serialize_* with Pydantic model_validate
+- [x] Dashboard overview API for control plane
+- [x] Initial control plane frontend with onboarding, setup, and test-call workflows (`apps/web`)
 
 ## 📋 Planned (v0.3)
 - [ ] Real STT provider (OpenAI Whisper / Deepgram)
@@ -67,7 +69,7 @@
 - [ ] Real-time WebSocket for live call monitoring
 - [ ] Call recording storage (S3-compatible)
 - [ ] Post-call summary generation (LLM-based)
-- [ ] Dashboard UI (React)
+- [ ] Rich dashboard UI (filters, drill-downs, auth flow)
 
 ## 📋 Planned (v0.4 — Cloud/Pro)
 - [ ] Hosted control plane

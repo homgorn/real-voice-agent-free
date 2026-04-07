@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import httpx
 from fastapi import APIRouter, Depends, Request
 
-import httpx
-
+from voiceagent_api import lemonsqueezy
 from voiceagent_api.auth import AuthContext, require_scope
 from voiceagent_api.errors import InvalidSignatureError, UpstreamServiceError
+from voiceagent_api.routers._helpers import (
+    idempotency_request_hash,
+    require_idempotency_key,
+)
 from voiceagent_api.schemas import (
     BillingWebhookResponse,
     ErrorResponse,
@@ -20,11 +24,6 @@ from voiceagent_api.schemas import (
     utc_now,
 )
 from voiceagent_api.store import store
-from voiceagent_api import lemonsqueezy
-from voiceagent_api.routers._helpers import (
-    require_idempotency_key,
-    idempotency_request_hash,
-)
 
 router = APIRouter()
 

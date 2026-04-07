@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VoiceAgent Control Plane</title>
+    <meta
+      name="description"
+      content="VoiceAgent control plane for operators running agents, calls, bookings, phone numbers, and integrations."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">Operator UI</p>
+          <h1>VoiceAgent</h1>
+          <p class="sidebar-copy">One place for launch readiness, simulations, bookings, and day-to-day operations.</p>
+        </div>
+
+        <form id="auth-form" class="panel auth-panel">
+          <label>
+            API base URL
+            <input id="api-base" type="url" value="http://localhost:8000" required />
+          </label>
+          <label>
+            Bearer API key
+            <input id="api-key" type="password" placeholder="dev-secret-key" required />
+          </label>
+          <div class="button-row">
+            <button type="submit">Connect</button>
+            <button id="reload-button" type="button" class="button-secondary">Reload</button>
+          </div>
+        </form>
+
+        <nav class="panel nav-panel" id="nav-tabs">
+          <button type="button" class="nav-button active" data-tab-target="overview">Overview</button>
+          <button type="button" class="nav-button" data-tab-target="agents">Agents</button>
+          <button type="button" class="nav-button" data-tab-target="calls">Calls</button>
+          <button type="button" class="nav-button" data-tab-target="bookings">Bookings</button>
+          <button type="button" class="nav-button" data-tab-target="setup">Setup</button>
+        </nav>
+
+        <div class="panel notes-panel">
+          <h2>Operator logic</h2>
+          <ol>
+            <li>Launch needs one published agent.</li>
+            <li>Inbound traffic needs an active phone number mapping.</li>
+            <li>Booking workflows work better with a connected calendar.</li>
+            <li>Failed or escalated calls should be reviewed from transcript and summary.</li>
+          </ol>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="hero">
+          <div>
+            <p class="eyebrow">Control plane</p>
+            <h2 id="org-name">Connect API to begin</h2>
+            <p id="org-slug" class="muted">No organization loaded</p>
+          </div>
+          <div class="hero-actions">
+            <span id="status-pill" class="status-pill">Idle</span>
+          </div>
+        </header>
+
+        <section id="error-banner" class="banner banner-error hidden"></section>
+        <section id="success-banner" class="banner banner-success hidden"></section>
+
+        <section class="tab-section active" data-tab="overview">
+          <section class="grid" id="snapshot-grid"></section>
+
+          <section class="two-column">
+            <div class="panel">
+              <div class="section-head">
+                <h3>Action items</h3>
+                <span>What blocks launch or quality</span>
+              </div>
+              <div id="action-items" class="list"></div>
+            </div>
+            <div class="panel">
+              <div class="section-head">
+                <h3>Upcoming bookings</h3>
+                <span>Near-term conversion queue</span>
+              </div>
+              <div id="overview-bookings" class="list"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <h3>Recent calls</h3>
+              <span>Latest operational signal</span>
+            </div>
+            <div id="overview-calls" class="table"></div>
+          </section>
+        </section>
+
+        <section class="tab-section" data-tab="agents">
+          <section class="two-column">
+            <form id="agent-form" class="panel form-panel">
+              <div class="section-head">
+                <h3>Create agent</h3>
+                <span>Draft from a template, optionally publish</span>
+              </div>
+              <label>
+                Template
+                <select id="agent-template" required></select>
+              </label>
+              <label>
+                Agent name
+                <input id="agent-name" type="text" placeholder="Front Desk" required />
+              </label>
+              <label>
+                Timezone
+                <input id="agent-timezone" type="text" value="Asia/Almaty" required />
+              </label>
+              <label>
+                Default language
+                <input id="agent-language" type="text" value="ru" required />
+              </label>
+              <label>
+                Business hours
+                <input id="agent-hours" type="text" value="09:00-18:00" required />
+              </label>
+              <label class="checkbox-row">
+                <input id="agent-publish" type="checkbox" />
+                Publish immediately after creation
+              </label>
+              <button type="submit">Create agent</button>
+            </form>
+
+            <div class="panel">
+              <div class="section-head">
+                <h3>Agent roster</h3>
+                <span>Drafts, published versions, and next actions</span>
+              </div>
+              <div id="agents-list" class="table"></div>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-section" data-tab="calls">
+          <section class="two-column calls-grid">
+            <form id="call-form" class="panel form-panel">
+              <div class="section-head">
+                <h3>Run test call</h3>
+                <span>Exercise STT - LLM - TTS from the control plane</span>
+              </div>
+              <label>
+                Agent
+                <select id="call-agent" required></select>
+              </label>
+              <label>
+                Phone number mapping
+                <select id="call-phone-number"></select>
+              </label>
+              <label>
+                Caller number
+                <input id="call-from-number" type="text" value="+77011234567" required />
+              </label>
+              <label>
+                Destination number
+                <input id="call-to-number" type="text" value="+77021234567" required />
+              </label>
+              <label>
+                Voice
+                <input id="call-voice" type="text" value="alloy" required />
+              </label>
+              <label>
+                Caller message
+                <textarea id="call-input" rows="4" required>I would like to book an appointment tomorrow after lunch.</textarea>
+              </label>
+              <label>
+                Completion outcome
+                <select id="call-outcome">
+                  <option value="faq_resolved">faq_resolved</option>
+                  <option value="booking_created">booking_created</option>
+                  <option value="lead_captured">lead_captured</option>
+                  <option value="escalated">escalated</option>
+                  <option value="abandoned">abandoned</option>
+                  <option value="failed">failed</option>
+                </select>
+              </label>
+              <label>
+                Simulated duration (seconds)
+                <input id="call-duration" type="number" min="5" value="90" required />
+              </label>
+              <label class="checkbox-row">
+                <input id="call-auto-complete" type="checkbox" checked />
+                Auto-complete the simulated call
+              </label>
+              <button type="submit">Run simulation</button>
+            </form>
+
+            <div class="panel">
+              <div class="section-head">
+                <h3>Call inspector</h3>
+                <span>Transcript, summary, and runtime output</span>
+              </div>
+              <div id="call-inspector" class="inspector"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <h3>Recent calls</h3>
+              <span>Inspect failures, durations, and summaries</span>
+            </div>
+            <div id="calls-list" class="table"></div>
+          </section>
+        </section>
+
+        <section class="tab-section" data-tab="bookings">
+          <section class="two-column">
+            <form id="booking-form" class="panel form-panel">
+              <div class="section-head">
+                <h3>Create booking</h3>
+                <span>Manual fallback when an operator needs to intervene</span>
+              </div>
+              <label>
+                Agent
+                <select id="booking-agent" required></select>
+              </label>
+              <label>
+                Contact name
+                <input id="booking-name" type="text" placeholder="Alina" required />
+              </label>
+              <label>
+                Contact phone
+                <input id="booking-phone" type="text" value="+77011234567" required />
+              </label>
+              <label>
+                Service
+                <input id="booking-service" type="text" value="consultation" required />
+              </label>
+              <label>
+                Start at
+                <input id="booking-start" type="datetime-local" required />
+              </label>
+              <div class="button-row">
+                <button type="submit">Create booking</button>
+                <button id="booking-refresh-slots" type="button" class="button-secondary">Refresh slots</button>
+              </div>
+            </form>
+
+            <div class="panel">
+              <div class="section-head">
+                <h3>Suggested availability</h3>
+                <span id="availability-meta">Select an agent to inspect upcoming availability.</span>
+              </div>
+              <div id="availability-list" class="list"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <h3>Bookings queue</h3>
+              <span>Confirmed, rescheduled, and cancelled appointments</span>
+            </div>
+            <div id="bookings-list" class="table"></div>
+          </section>
+        </section>
+
+        <section class="tab-section" data-tab="setup">
+          <section class="two-column">
+            <form id="phone-form" class="panel form-panel">
+              <div class="section-head">
+                <h3>Phone number</h3>
+                <span>Attach routing targets for inbound voice traffic</span>
+              </div>
+              <label>
+                Provider
+                <input id="phone-provider" type="text" value="stub" required />
+              </label>
+              <label>
+                Number
+                <input id="phone-number" type="text" value="+15551234567" required />
+              </label>
+              <label>
+                Label
+                <input id="phone-label" type="text" value="Front Desk" required />
+              </label>
+              <label>
+                Status
+                <select id="phone-status">
+                  <option value="active">active</option>
+                  <option value="inactive">inactive</option>
+                </select>
+              </label>
+              <button type="submit">Save number</button>
+            </form>
+
+            <form id="integration-form" class="panel form-panel">
+              <div class="section-head">
+                <h3>Integration</h3>
+                <span>Calendar connectivity for booking workflows</span>
+              </div>
+              <label>
+                Provider
+                <select id="integration-provider">
+                  <option value="calendar">calendar</option>
+                </select>
+              </label>
+              <label>
+                Calendar identifier
+                <input id="integration-reference" type="text" value="cal_primary" required />
+              </label>
+              <button type="submit">Connect integration</button>
+            </form>
+          </section>
+
+          <section class="two-column">
+            <div class="panel">
+              <div class="section-head">
+                <h3>Phone numbers</h3>
+                <span>Activate or disable traffic routes</span>
+              </div>
+              <div id="phone-list" class="table"></div>
+            </div>
+            <div class="panel">
+              <div class="section-head">
+                <h3>Integrations</h3>
+                <span>Connected providers and health checks</span>
+              </div>
+              <div id="integrations-list" class="table"></div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

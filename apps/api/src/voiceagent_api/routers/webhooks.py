@@ -3,9 +3,17 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from voiceagent_api.auth import AuthContext, require_scope
+from voiceagent_api.routers._helpers import (
+    apply_pagination,
+    idempotency_request_hash,
+    normalize_pagination,
+    require_idempotency_key,
+    trace_id_from_request,
+)
 from voiceagent_api.schemas import (
     ErrorResponse,
     WebhookCreateRequest,
+    WebhookCreateResponse,
     WebhookDeliveryListResponse,
     WebhookDeliveryProcessResponse,
     WebhookDeliveryResponse,
@@ -15,13 +23,6 @@ from voiceagent_api.schemas import (
     utc_now,
 )
 from voiceagent_api.store import store
-from voiceagent_api.routers._helpers import (
-    trace_id_from_request,
-    require_idempotency_key,
-    idempotency_request_hash,
-    normalize_pagination,
-    apply_pagination,
-)
 
 router = APIRouter()
 
@@ -60,14 +61,14 @@ async def delete_webhook(
 
 @router.post(
     "/v1/webhooks",
-    response_model=WebhookResponse,
+    response_model=WebhookCreateResponse,
     responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
 )
 async def create_webhook(
     payload: WebhookCreateRequest,
     request: Request,
     auth: AuthContext = Depends(require_scope("webhooks:write")),
-) -> WebhookResponse:
+) -> WebhookCreateResponse:
     idempotency_key = require_idempotency_key(request)
     request_hash = idempotency_request_hash(
         payload.model_dump(),
@@ -82,7 +83,7 @@ async def create_webhook(
         request_hash=request_hash,
     )
     if cached:
-        return WebhookResponse.model_validate(cached["response_body"])
+        return WebhookCreateResponse.model_validate(cached["response_body"])
 
     record = store.create_webhook(payload, organization_id=auth.organization_id, now=utc_now())
     store.store_idempotent_response(
@@ -95,7 +96,7 @@ async def create_webhook(
         response_code=200,
         created_at=utc_now(),
     )
-    return WebhookResponse.model_validate(record)
+    return WebhookCreateResponse.model_validate(record)
 
 
 @router.get(
